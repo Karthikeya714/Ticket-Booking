@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { Layout } from "./components/Layout";
+import { ColdStartOverlay } from "./components/ColdStartOverlay";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
@@ -17,6 +18,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <ColdStartOverlay />
         <Routes>
           <Route element={<Layout />}>
             <Route index element={<EventsPage />} />

@@ -1,3 +1,5 @@
+import { trackColdStart } from "./coldStart";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
 export class ApiError extends Error {
@@ -20,7 +22,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  const res = await trackColdStart(fetch(`${API_URL}${path}`, { ...options, headers }));
 
   // 204s and some POSTs return no body; guard against JSON-parsing an empty response.
   const text = await res.text();
