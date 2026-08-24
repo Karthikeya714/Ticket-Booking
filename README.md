@@ -73,6 +73,70 @@ npm install
 npm run dev              # http://localhost:5173
 ```
 
+## Deployment (Render + Vercel)
+
+`render.yaml` (repo root) and `frontend/vercel.json` are already set up — Render auto-detects
+the blueprint, and the Vercel rewrite is what makes client-side routes (e.g. `/events/:id`)
+work on a hard refresh instead of 404ing. The steps below are the parts only a human can do:
+creating resources and pasting secrets into each platform's dashboard. Nothing here is
+optional — skipping the CORS/origin steps specifically will leave the deployed site unable to
+talk to itself.
+
+**1. Backend + Postgres on Render**
+1. [Render dashboard](https://dashboard.render.com) → **New → Blueprint** → connect the
+   `Karthikeya714/Ticket-Booking` GitHub repo. Render reads `render.yaml` and proposes a
+   Postgres database (`ticketing-db`) plus a web service (`ticketing-backend`) — accept it.
+2. Before the first deploy succeeds, fill in the env vars marked `sync: false` in
+   `render.yaml`, under the `ticketing-backend` service's **Environment** tab:
+   - `JWT_SECRET` — generate a fresh one for production, don't reuse the dev value:
+     `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+   - `GOOGLE_CLIENT_ID`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `EMAIL_FROM` — same values as your
+     local `backend/.env`.
+   - `CORS_ORIGIN` and `FRONTEND_URL` — leave blank for now, you'll set these in step 3 once
+     the Vercel URL exists (the backend will 500 on cross-origin requests from the frontend
+     until then, which is expected and fixed by that step).
+3. `DATABASE_URL` is wired automatically from the `ticketing-db` database Render just created —
+   don't set it manually. The build command runs `prisma migrate deploy`, which applies the
+   committed migrations (`backend/prisma/migrations/`) to that fresh database.
+4. Deploy. Note the resulting URL (e.g. `https://ticketing-backend.onrender.com`).
+
+**2. Frontend on Vercel**
+1. [Vercel dashboard](https://vercel.com/new) → import the same GitHub repo.
+2. Set **Root Directory** to `frontend` (the repo root isn't the frontend project).
+3. Add env vars: `VITE_API_URL` = the Render backend URL from step 1.4; `VITE_GOOGLE_CLIENT_ID`
+   = same value as `frontend/.env.local`.
+4. Deploy. Note the resulting URL (e.g. `https://ticket-booking.vercel.app`).
+
+**3. Wire the two together**
+1. Back on Render, set `CORS_ORIGIN` and `FRONTEND_URL` (both) to the Vercel URL from step 2.4,
+   then trigger a redeploy (Render doesn't restart automatically for an env var change made
+   after the first deploy).
+2. [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials) →
+   your OAuth client → add the Vercel URL to **Authorized JavaScript origins** (alongside
+   `http://localhost:5173`), or Google Sign-In will fail on the live site with the same
+   "origin not allowed" error this project hit locally before that step.
+
+**4. Seed the production database**
+Render's free plan doesn't reliably offer a shell, so run the seed script from your machine
+against the production database instead — copy the **External Database URL** from the
+`ticketing-db` page:
+
+```
+cd backend
+DATABASE_URL="<external connection string from Render>" npx tsx prisma/seed.ts
+```
+
+**Known free-tier limitation**: Render's free web services spin down after ~15 minutes idle
+and cold-start on the next request (10-30s). The in-process cron sweep (`cron/expireHolds.ts`)
+only runs while the service is awake, so an abandoned hold on a sleeping instance won't expire
+exactly on schedule — but the lazy-expiry check (`expireIfNeeded` in `services/seatLock.ts`)
+still catches it correctly the moment anyone next touches that seat, so this never causes a
+stuck or double-bookable seat, just a delayed cleanup. Fine for a demo; a paid always-on plan
+removes this entirely.
+
+**Definition of done**: visiting the Vercel URL cold, a new customer can register, book a seat,
+and receive a real confirmation email with a QR code — the same flow already proven locally.
+
 ## Waitlist & time-limited offers
 
 When a seat category is sold out, customers queue up; when a booking is cancelled, the freed
