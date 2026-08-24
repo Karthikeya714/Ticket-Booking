@@ -29,10 +29,7 @@ const FEATURES = [
 export function LandingPage() {
   return (
     <div className="max-w-3xl mx-auto">
-      <div
-        className="text-center opacity-0 [animation-fill-mode:both]"
-        style={{ animation: "fade-in-up 0.6s ease-out" }}
-      >
+      <div className="text-center" style={{ animation: "fade-in-up 0.6s ease-out both" }}>
         <span className="inline-grid place-items-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-600 shadow-lg shadow-violet-500/30 text-3xl mb-5">
           🎟️
         </span>
@@ -57,8 +54,8 @@ export function LandingPage() {
         {FEATURES.map((f, i) => (
           <Card
             key={f.title}
-            className="p-5 opacity-0 [animation-fill-mode:both]"
-            style={{ animation: `fade-in-up 0.6s ease-out ${0.1 + i * 0.1}s` }}
+            className="p-5"
+            style={{ animation: `fade-in-up 0.6s ease-out ${0.1 + i * 0.1}s both` }}
           >
             <span className="grid place-items-center w-10 h-10 rounded-xl bg-violet-50 text-xl mb-3">
               {f.icon}
