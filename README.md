@@ -90,8 +90,9 @@ talk to itself.
    `render.yaml`, under the `ticketing-backend` service's **Environment** tab:
    - `JWT_SECRET` — generate a fresh one for production, don't reuse the dev value:
      `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
-   - `GOOGLE_CLIENT_ID`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `EMAIL_FROM` — same values as your
-     local `backend/.env`.
+   - `GOOGLE_CLIENT_ID`, `BREVO_API_KEY`, `EMAIL_FROM` — same values as your local
+     `backend/.env` (see "QR codes & email delivery" below for how to get a Brevo key — Render's
+     free tier blocks raw SMTP, which is why this isn't Gmail SMTP credentials).
    - `CORS_ORIGIN` and `FRONTEND_URL` — leave blank for now, you'll set these in step 3 once
      the Vercel URL exists (the backend will 500 on cross-origin requests from the frontend
      until then, which is expected and fixed by that step).
@@ -171,20 +172,32 @@ entry per show+category — a second join returns `409`.
 - On booking confirmation — via direct checkout (`POST /api/holds/:holdId/confirm`) or waitlist
   offer acceptance (`POST /api/waitlist-offers/:offerId/accept`) — a QR PNG is generated
   server-side (`qrcode`) encoding **only** the `booking_reference`, never seat/customer/price
-  details, and embedded inline in a confirmation email via Nodemailer.
+  details, base64-embedded directly in the confirmation email's HTML (`data:image/png;base64,...`)
+  and attached as a real file.
 - Waitlist offer emails carry a distinct time-limited link (`{FRONTEND_URL}/waitlist-offer/:token`)
   instead of a QR — there's nothing to scan yet, since accepting the offer is what creates the
   booking (and therefore the QR) in the first place.
 - Email sending is fire-and-forget from the caller's perspective and **never throws** — a booking
-  or offer that already committed can't be undone by an SMTP failure. Without `SMTP_USER` /
-  `SMTP_APP_PASSWORD` set, sends fall back to a console log (`[email:stub] ...`) instead of
-  erroring, so the whole booking/waitlist flow stays testable without real credentials.
-- Nodemailer is configured for Gmail SMTP (`service: "gmail"`) using an
-  [App Password](https://support.google.com/accounts/answer/185833) — a regular account password
-  won't work with 2FA enabled. To swap in Resend/SendGrid instead: replace the
-  `nodemailer.createTransport(...)` call in `backend/src/services/mailer.ts` with that provider's
-  transport config; nothing else in the codebase needs to change since callers only see
-  `sendBookingConfirmationEmail` / `sendWaitlistOfferEmail`.
+  or offer that already committed can't be undone by a mail-provider failure. Without
+  `BREVO_API_KEY` set, sends fall back to a console log (`[email:stub] ...`) instead of erroring,
+  so the whole booking/waitlist flow stays testable without a real API key.
+- **Sends go through [Brevo](https://www.brevo.com)'s transactional email API, not raw SMTP**
+  (`backend/src/services/mailer.ts`) — a single `fetch()` call, no library needed. This was a
+  deliberate choice, not a default: most free-tier PaaS hosts (Render included, as of September
+  2025) block all outbound traffic on SMTP ports 25/465/587, so Nodemailer-over-Gmail can never
+  work there regardless of how correct the credentials are — the connection times out before
+  authentication is even attempted. An HTTP-based provider sends over port 443 instead, which
+  isn't affected, and behaves identically in local dev and in production.
+  - Setup: sign up free at brevo.com, verify your sending address under **Senders** (a
+    confirmation-email click, not full domain/DNS setup — right for a Gmail-style sender with no
+    owned domain), then generate a key under **Settings → SMTP & API → API Keys**.
+  - Brevo's API doesn't support inline `cid:`-referenced images at all (confirmed via their docs
+    and community forum), which is why the QR code is a `data:` URI in the HTML rather than a
+    CID attachment reference — that part isn't provider-specific, it renders in any modern client
+    including Gmail, this app's actual target.
+  - To swap providers again (Resend, SendGrid, Postmark, ...): only `sendEmail()` in
+    `mailer.ts` needs to change: nothing else in the codebase talks to the mail provider directly,
+    callers only see `sendBookingConfirmationEmail` / `sendWaitlistOfferEmail`.
 
 ### Inbox vs. spam
 
@@ -192,23 +205,15 @@ No sender can *guarantee* inbox placement — that's the receiving provider's sp
 sender reputation, authentication alignment, and content it evaluates on the fly. What this
 codebase does to stay on the right side of that:
 
-- **`EMAIL_FROM` defaults to the `SMTP_USER` address itself** (`backend/src/env.ts`) rather than
-  an arbitrary display address, unless you override it. This matters more than it sounds: Gmail's
-  SMTP relay expects the `From` header to match the authenticated account (or a verified "Send
-  mail as" alias configured on it) — a mismatch gets rewritten or flagged, and breaks SPF/DKIM
-  alignment at the receiving end, which is one of the most common spam triggers. If you set
-  `EMAIL_FROM` yourself, keep it as either the same Gmail address or an alias you've verified
-  in that account's Gmail settings.
-- Every email is sent as **`multipart/alternative`** (both `text` and `html` bodies) — HTML-only
-  mail is itself a spam-score signal, since legitimate transactional email almost always includes
-  a plain-text part.
-- Using `smtp.gmail.com` directly (rather than an unauthenticated/unknown relay) inherits Gmail's
-  own sender reputation, which is one of the more reliable options for low-volume transactional
-  mail like this without owning a domain and setting up your own SPF/DKIM/DMARC records.
-
-For a real deployment sending any real volume, a dedicated transactional provider (Resend,
-SendGrid, Postmark) with your own verified sending domain is the more robust choice — Gmail SMTP
-is documented above specifically because it's the simplest thing that works for a one-day build.
+- **`EMAIL_FROM` must be a Brevo-verified sender** (`backend/src/env.ts`) — Brevo rejects sends
+  from an address it hasn't verified, so this isn't optional the way it was with SMTP's looser
+  same-account requirement.
+- Every email is sent as **both a `text` and `html` body** — HTML-only mail is itself a
+  spam-score signal, since legitimate transactional email almost always includes a plain-text
+  part.
+- Brevo's own sending infrastructure carries its own established sender reputation, which is one
+  of the more reliable options for low-volume transactional mail like this without owning a
+  domain and setting up your own SPF/DKIM/DMARC records.
 
 ## Real-time seat map (Socket.IO)
 

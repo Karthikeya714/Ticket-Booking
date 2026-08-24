@@ -1,23 +1,62 @@
-import nodemailer, { type Transporter } from "nodemailer";
 import { env } from "../env";
 
-let transporter: Transporter | null | undefined;
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+}
 
-// Lazily built and cached. Returns null (not an error) when SMTP_USER/SMTP_APP_PASSWORD aren't
-// set, so the rest of the app can run — and be tested — without real credentials; callers fall
-// back to logging instead of sending. `undefined` means "not yet resolved", `null` means
-// "resolved to unconfigured", keeping the memoization and the "is it configured" check distinct.
-export function getTransporter(): Transporter | null {
-  if (transporter !== undefined) return transporter;
+export interface SendEmailParams {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+  attachments?: EmailAttachment[];
+}
 
-  if (!env.smtpUser || !env.smtpAppPassword) {
-    transporter = null;
-    return transporter;
+// Render's free tier blocks all outbound traffic on SMTP ports 25/465/587, so Nodemailer-over-
+// Gmail can never work there — the TCP connection times out before authentication is even
+// attempted, regardless of how correct the credentials are. Brevo's API runs over plain HTTPS
+// (port 443), which isn't affected by that block, and behaves identically in every environment
+// (local dev included), so there's no reason to keep two separate mailer implementations.
+//
+// Returns null (not an error) when BREVO_API_KEY isn't set, matching the old getTransporter()
+// contract, so callers fall back to a console-log stub instead of erroring — this keeps every
+// booking/waitlist flow testable without a real API key.
+export async function sendEmail(params: SendEmailParams): Promise<{ messageId: string } | null> {
+  if (!env.brevoApiKey) return null;
+
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": env.brevoApiKey,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      sender: parseFromHeader(env.emailFrom),
+      to: [{ email: params.to }],
+      subject: params.subject,
+      htmlContent: params.html,
+      textContent: params.text,
+      ...(params.attachments && params.attachments.length > 0
+        ? { attachment: params.attachments.map((a) => ({ name: a.filename, content: a.content.toString("base64") })) }
+        : {}),
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Brevo API request failed (${res.status}): ${body}`);
   }
 
-  transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: { user: env.smtpUser, pass: env.smtpAppPassword },
-  });
-  return transporter;
+  const data = (await res.json()) as { messageId?: string };
+  return { messageId: data.messageId ?? "(no message id returned)" };
+}
+
+// "Ticket Platform <no-reply@example.com>" -> { name: "Ticket Platform", email: "no-reply@..." }.
+// Brevo's API wants sender name/email as separate fields rather than one RFC 5322 header string.
+function parseFromHeader(from: string): { name?: string; email: string } {
+  const match = from.match(/^(.*)<(.+)>$/);
+  if (match) return { name: match[1].trim(), email: match[2].trim() };
+  return { email: from.trim() };
 }
