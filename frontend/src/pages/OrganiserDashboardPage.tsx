@@ -48,7 +48,7 @@ export function OrganiserDashboardPage() {
       <PageHeading subtitle="Create events, schedule shows, and track revenue.">Organiser dashboard</PageHeading>
 
       <Card className="p-6 mb-8">
-        <h2 className="font-semibold text-gray-900 mb-4">Create an event</h2>
+        <h2 className="font-semibold text-slate-900 mb-4">Create an event</h2>
         <form onSubmit={handleCreateEvent} className="flex flex-col gap-3">
           <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} required />
           <Select value={type} onChange={(e) => setType(e.target.value as "movie" | "concert")}>
@@ -69,9 +69,9 @@ export function OrganiserDashboardPage() {
         </form>
       </Card>
 
-      <h2 className="font-semibold text-gray-900 mb-3">Your events ({events.length})</h2>
+      <h2 className="font-semibold text-slate-900 mb-3">Your events ({events.length})</h2>
       <div className="flex flex-col gap-3">
-        {events.length === 0 && <Card className="p-6 text-center text-gray-500">No events yet — create one above.</Card>}
+        {events.length === 0 && <Card className="p-6 text-center text-slate-500">No events yet — create one above.</Card>}
         {events.map((event) => (
           <EventRow
             key={event.id}
@@ -136,10 +136,10 @@ function EventRow({
       <button type="button" onClick={onToggle} className="w-full flex items-center justify-between gap-2 flex-wrap text-left">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="font-medium text-gray-900">{event.title}</h3>
+            <h3 className="font-medium text-slate-900">{event.title}</h3>
             <Badge tone={event.type === "movie" ? "indigo" : "amber"}>{event.type}</Badge>
           </div>
-          <p className="text-sm text-gray-500 mt-0.5">{event.description}</p>
+          <p className="text-sm text-slate-500 mt-0.5">{event.description}</p>
         </div>
         {/* Revenue is the number an organiser actually cares about, so it gets the strongest
             treatment of the three rather than sitting as a peer badge. */}
@@ -153,11 +153,11 @@ function EventRow({
       </button>
 
       {expanded && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          {loadingDetail && <p className="text-sm text-gray-500">Loading...</p>}
+        <div className="mt-4 pt-4 border-t border-slate-200">
+          {loadingDetail && <p className="text-sm text-slate-500">Loading...</p>}
           {detail && (
             <>
-              {detail.shows.length === 0 && <p className="text-sm text-gray-500 mb-3">No shows scheduled yet.</p>}
+              {detail.shows.length === 0 && <p className="text-sm text-slate-500 mb-3">No shows scheduled yet.</p>}
               <div className="flex flex-col gap-2 mb-4">
                 {detail.shows.map((s) => (
                   <div
@@ -184,7 +184,7 @@ function EventRow({
                 }}
               />
 
-              <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="mt-4 pt-4 border-t border-slate-200">
                 {deleteError && <ErrorBanner>{deleteError}</ErrorBanner>}
                 <Button variant="danger" onClick={handleDelete} disabled={deleting} className="mt-2">
                   {deleting ? "Deleting..." : "Delete event"}
@@ -235,10 +235,10 @@ function AddShowForm({ eventId, venues, onCreated }: { eventId: string; venues: 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2 bg-indigo-50/60 border border-indigo-100 rounded-lg p-3">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Add a show</p>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2 bg-violet-50/60 border border-violet-100 rounded-lg p-3">
+      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Add a show</p>
       {venues.length === 0 ? (
-        <p className="text-sm text-gray-500">No venues exist yet — ask an admin to create one first.</p>
+        <p className="text-sm text-slate-500">No venues exist yet — ask an admin to create one first.</p>
       ) : (
         <>
           <Select value={venueId} onChange={(e) => handleVenueChange(e.target.value)} required>
@@ -254,7 +254,7 @@ function AddShowForm({ eventId, venues, onCreated }: { eventId: string; venues: 
             <div className="flex flex-col gap-2">
               {selectedVenue.categories.map((c) => (
                 <div key={c} className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600 w-28 shrink-0">{c}</span>
+                  <span className="text-sm text-slate-600 w-28 shrink-0">{c}</span>
                   <Input
                     type="number"
                     min={0.01}

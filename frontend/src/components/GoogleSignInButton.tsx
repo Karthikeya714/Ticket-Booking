@@ -75,7 +75,7 @@ export function GoogleSignInButton({ role = "customer" }: { role?: SelfServeRole
   return (
     <div>
       <div ref={containerRef} />
-      {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+      {error && <p className="text-sm text-rose-600 mt-2 font-medium">{error}</p>}
     </div>
   );
 }

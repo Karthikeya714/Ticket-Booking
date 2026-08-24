@@ -229,14 +229,14 @@ export function ShowPage() {
 
   return (
     <div className={`max-w-3xl mx-auto ${heldSeats.length > 0 ? "pb-36 sm:pb-28" : ""}`}>
-      <Link to={`/events/${show.event.id}`} className="text-sm text-indigo-600 hover:underline">
+      <Link to={`/events/${show.event.id}`} className="text-sm font-semibold text-violet-600 hover:text-fuchsia-600">
         &larr; Back to {show.event.title}
       </Link>
       <div className="flex items-center gap-2 mt-2">
-        <h1 className="text-2xl font-bold text-gray-900">{show.event.title}</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{show.event.title}</h1>
         <Badge tone={show.event.type === "movie" ? "indigo" : "amber"}>{show.event.type}</Badge>
       </div>
-      <p className="text-gray-500 mt-1">
+      <p className="text-slate-500 mt-1">
         {new Date(show.dateTime).toLocaleString()} &middot; {show.venue.name}
       </p>
 
@@ -253,7 +253,7 @@ export function ShowPage() {
           </InfoBanner>
         )}
         {!seatsLocked && (
-          <p className="text-sm text-gray-500">Click seats to select — you can pick more than one before checking out.</p>
+          <p className="text-sm text-slate-500">Click seats to select — you can pick more than one before checking out.</p>
         )}
       </div>
 
@@ -303,7 +303,7 @@ export function ShowPage() {
           <div className="flex flex-col gap-2.5 w-max mx-auto">
             {rows.map((row) => (
               <div key={row} className="flex items-center gap-2 sm:gap-3">
-                <span className="w-4 sm:w-5 text-sm font-medium text-gray-400 shrink-0 text-right">{row}</span>
+                <span className="w-4 sm:w-5 text-sm font-medium text-slate-400 shrink-0 text-right">{row}</span>
                 <div className="flex gap-1.5 sm:gap-2 flex-1 justify-center">
                   {seats
                     .filter((s) => s.rowLabel === row)
@@ -327,7 +327,7 @@ export function ShowPage() {
                 {/* Mirrors the left gutter — real seating charts label both ends, and the symmetry
                     is also what keeps the seat block centred on the same axis as the SCREEN arc
                     (a left-only label would push the seats right by half the gutter). */}
-                <span className="w-4 sm:w-5 text-sm font-medium text-gray-400 shrink-0">{row}</span>
+                <span className="w-4 sm:w-5 text-sm font-medium text-slate-400 shrink-0">{row}</span>
               </div>
             ))}
           </div>
@@ -336,7 +336,7 @@ export function ShowPage() {
 
       {!seatsLocked && categories.some((c) => !seats.some((s) => s.category === c && s.status === "available")) && (
         <Card className="p-5 mt-4 flex flex-col gap-2">
-          <h3 className="font-medium text-gray-900 text-sm">Sold out categories</h3>
+          <h3 className="font-medium text-slate-900 text-sm">Sold out categories</h3>
           <div className="flex gap-2 flex-wrap">
             {categories.map((category) => {
               const hasAvailable = seats.some((s) => s.category === category && s.status === "available");
@@ -348,7 +348,7 @@ export function ShowPage() {
               );
             })}
           </div>
-          {waitlistMessage && <p className="text-sm text-gray-600 mt-1">{waitlistMessage}</p>}
+          {waitlistMessage && <p className="text-sm text-slate-600 mt-1">{waitlistMessage}</p>}
         </Card>
       )}
 

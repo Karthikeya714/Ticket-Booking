@@ -42,7 +42,7 @@ export function WaitlistOfferPage() {
     return (
       <div className="max-w-md mx-auto mt-4 sm:mt-8">
         <Card className="p-6 sm:p-10 text-center">
-          <p className="text-gray-600 mb-4">Log in to view this offer.</p>
+          <p className="text-slate-600 mb-4">Log in to view this offer.</p>
           <Button onClick={() => navigate("/login")}>Log in</Button>
         </Card>
       </div>
@@ -70,11 +70,11 @@ export function WaitlistOfferPage() {
           ✨
         </div>
         <h1 className="font-display text-2xl font-extrabold text-slate-900 mb-1">A seat is available for you</h1>
-        <p className="text-gray-700 font-medium mt-3">{offer.eventTitle}</p>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-slate-700 font-medium mt-3">{offer.eventTitle}</p>
+        <p className="text-sm text-slate-500 mt-1">
           {new Date(offer.dateTime).toLocaleString()} &middot; {offer.venueName}
         </p>
-        <p className="text-sm text-gray-500 mb-6">
+        <p className="text-sm text-slate-500 mb-6">
           Seat {offer.seatLabel} &middot; {offer.category}
         </p>
 
@@ -84,8 +84,8 @@ export function WaitlistOfferPage() {
           </ErrorBanner>
         ) : (
           <>
-            <p className="text-sm text-gray-500 mb-4">
-              Expires in <span className="font-mono font-semibold text-gray-700">{formatCountdown(remainingSeconds)}</span>
+            <p className="text-sm text-slate-500 mb-4">
+              Expires in <span className="font-mono font-semibold text-slate-700">{formatCountdown(remainingSeconds)}</span>
             </p>
             <Button onClick={handleAccept} disabled={accepting} className="w-full">
               {accepting ? "Booking..." : "Claim this seat"}

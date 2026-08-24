@@ -32,9 +32,18 @@ export function BookingConfirmationPage() {
             A confirmation email with your QR code ticket is on its way — check your inbox (and spam folder, just in
             case).
           </p>
-          <Link to="/bookings">
-            <Button className="w-full">View my bookings</Button>
-          </Link>
+          {/* "View my bookings" stays the primary action since it's the natural next step right
+              after booking; browsing on is offered alongside it rather than competing with it. */}
+          <div className="flex flex-col gap-2.5">
+            <Link to="/bookings">
+              <Button className="w-full">View my bookings</Button>
+            </Link>
+            <Link to="/">
+              <Button variant="secondary" className="w-full">
+                🏠 Back to home
+              </Button>
+            </Link>
+          </div>
         </div>
       </Card>
     </div>

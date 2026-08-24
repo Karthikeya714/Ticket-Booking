@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { apiGet, apiPost, ApiError } from "../api/client";
 import type { Booking } from "../api/types";
 import { Badge, Button, Card, ErrorBanner, PageHeading } from "../components/ui";
@@ -33,7 +33,14 @@ export function BookingHistoryPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <PageHeading>My bookings</PageHeading>
+      {/* This page is reachable straight from the nav and from the confirmation screen, so it
+          needs its own way back rather than relying on the browser's back button. */}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <PageHeading>My bookings</PageHeading>
+        <Link to="/" className="shrink-0">
+          <Button variant="secondary">🏠 Home</Button>
+        </Link>
+      </div>
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
       {bookings.length === 0 && (
@@ -90,7 +97,7 @@ export function BookingHistoryPage() {
                       {cancellingId === booking.id ? "Cancelling..." : "Cancel"}
                     </Button>
                   ) : (
-                    <span className="text-xs text-gray-400">Past show</span>
+                    <span className="text-xs text-slate-400">Past show</span>
                   ))}
               </div>
             </div>

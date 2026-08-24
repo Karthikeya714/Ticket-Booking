@@ -33,7 +33,7 @@ function SeatRowsEditor({
         // (won't shrink below its content), which is exactly what forced the overflow before.
         <div key={i} className="flex flex-nowrap items-end gap-1.5 sm:gap-2">
           <label className="flex flex-col gap-1 w-14 sm:w-20 shrink-0">
-            <span className="text-[11px] font-medium text-gray-500">Row</span>
+            <span className="text-[11px] font-medium text-slate-500">Row</span>
             <Input
               placeholder="A"
               value={row.rowLabel}
@@ -42,7 +42,7 @@ function SeatRowsEditor({
             />
           </label>
           <label className="flex flex-col gap-1 flex-1 min-w-0">
-            <span className="text-[11px] font-medium text-gray-500">Category</span>
+            <span className="text-[11px] font-medium text-slate-500">Category</span>
             <Input
               placeholder="PREMIUM"
               value={row.category}
@@ -51,7 +51,7 @@ function SeatRowsEditor({
             />
           </label>
           <label className="flex flex-col gap-1 w-14 sm:w-20 shrink-0">
-            <span className="text-[11px] font-medium text-gray-500">Seats</span>
+            <span className="text-[11px] font-medium text-slate-500">Seats</span>
             <Input
               type="number"
               min={1}
@@ -68,7 +68,7 @@ function SeatRowsEditor({
             <button
               type="button"
               onClick={() => setSeatRows((prev) => prev.filter((_, idx) => idx !== i))}
-              className="h-[42px] w-7 shrink-0 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50"
+              className="h-[42px] w-7 shrink-0 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50"
               title={`Remove row ${row.rowLabel || i + 1}`}
               aria-label={`Remove row ${row.rowLabel || i + 1}`}
             >
@@ -128,25 +128,25 @@ export function AdminDashboardPage() {
       <PageHeading subtitle="Create venues and their seat layouts.">Admin dashboard</PageHeading>
 
       <Card className="p-6 mb-8">
-        <h2 className="font-semibold text-gray-900 mb-4">Create a venue</h2>
+        <h2 className="font-semibold text-slate-900 mb-4">Create a venue</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <Input placeholder="Venue name" value={name} onChange={(e) => setName(e.target.value)} required />
           <Input placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} required />
 
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mt-2">Seat rows</p>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mt-2">Seat rows</p>
           <SeatRowsEditor seatRows={seatRows} setSeatRows={setSeatRows} />
 
           {error && <ErrorBanner>{error}</ErrorBanner>}
-          {success && <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{success}</p>}
+          {success && <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">{success}</p>}
           <Button type="submit" disabled={submitting} className="mt-2">
             {submitting ? "Creating..." : "Create venue"}
           </Button>
         </form>
       </Card>
 
-      <h2 className="font-semibold text-gray-900 mb-3">Venues ({venues.length})</h2>
+      <h2 className="font-semibold text-slate-900 mb-3">Venues ({venues.length})</h2>
       <div className="flex flex-col gap-3">
-        {venues.length === 0 && <Card className="p-6 text-center text-gray-500">No venues yet.</Card>}
+        {venues.length === 0 && <Card className="p-6 text-center text-slate-500">No venues yet.</Card>}
         {venues.map((v) => (
           <VenueCard key={v.id} venue={v} onChanged={reload} />
         ))}
@@ -189,8 +189,8 @@ function VenueCard({ venue, onChanged }: { venue: Venue; onChanged: () => void }
         className="w-full flex items-center justify-between gap-2 flex-wrap text-left"
       >
         <div>
-          <h3 className="font-medium text-gray-900">{venue.name}</h3>
-          <p className="text-sm text-gray-500">{venue.address}</p>
+          <h3 className="font-medium text-slate-900">{venue.name}</h3>
+          <p className="text-sm text-slate-500">{venue.address}</p>
         </div>
         <div className="flex gap-1.5 items-center flex-wrap">
           <Badge tone="gray">{venue.seatCount} seats</Badge>
@@ -203,13 +203,13 @@ function VenueCard({ venue, onChanged }: { venue: Venue; onChanged: () => void }
       </button>
 
       {expanded && (
-        <form onSubmit={handleAddSeats} className="mt-4 pt-4 border-t border-gray-200 flex flex-col gap-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        <form onSubmit={handleAddSeats} className="mt-4 pt-4 border-t border-slate-200 flex flex-col gap-3">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
             Add more rows (row labels must be new to this venue)
           </p>
           <SeatRowsEditor seatRows={seatRows} setSeatRows={setSeatRows} />
           {error && <ErrorBanner>{error}</ErrorBanner>}
-          {success && <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{success}</p>}
+          {success && <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">{success}</p>}
           <Button type="submit" disabled={submitting} className="self-start">
             {submitting ? "Adding..." : "Add seats"}
           </Button>

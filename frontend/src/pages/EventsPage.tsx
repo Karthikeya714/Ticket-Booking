@@ -104,7 +104,7 @@ export function EventsPage() {
             <button
               type="button"
               onClick={() => setDate("")}
-              className="text-sm text-gray-400 hover:text-gray-600 px-1 shrink-0"
+              className="text-sm text-slate-400 hover:text-slate-600 px-1 shrink-0"
               title="Clear date filter"
             >
               &times;

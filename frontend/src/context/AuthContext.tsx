@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import { apiPost, ApiError } from "../api/client";
 import type { AuthResponse, User } from "../api/types";
 
@@ -36,6 +36,21 @@ function persist(auth: AuthResponse) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(loadStoredUser);
+
+  // localStorage is shared across every tab of a browser, but this state was only read once at
+  // mount — so logging into a second account in another tab left this tab showing the *old*
+  // user's name in the header while every request it made carried the *new* account's token.
+  // The UI was actively lying about who you were signed in as. The `storage` event fires only in
+  // the other tabs (never the one that wrote), which is exactly the set that needs resyncing.
+  useEffect(() => {
+    function syncFromStorage(event: StorageEvent) {
+      // `key === null` means localStorage.clear() — treat it as a change like any other.
+      if (event.key !== null && event.key !== "user" && event.key !== "token") return;
+      setUser(loadStoredUser());
+    }
+    window.addEventListener("storage", syncFromStorage);
+    return () => window.removeEventListener("storage", syncFromStorage);
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const auth = await apiPost<AuthResponse>("/api/auth/login", { email, password });
