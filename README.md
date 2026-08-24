@@ -21,8 +21,8 @@ frees up, and QR-code tickets delivered by email.
 | **Landing page** | **Browse events** |
 | ![Seat map](docs/screenshots/seat-map.png) | ![Booking confirmation](docs/screenshots/booking-confirmation.png) |
 | **Live seat map** | **Booking confirmation** |
-| ![Organiser dashboard](docs/screenshots/organiser-dashboard.png) | ![Admin dashboard](docs/screenshots/admin-dashboard.png) |
-| **Organiser dashboard** | **Admin dashboard** |
+| ![Organiser dashboard](docs/screenshots/organiser-dashboard.png) | |
+| **Organiser dashboard** | |
 
 <sub>See [docs/screenshots/README.md](docs/screenshots/README.md) for exactly which pages these are.</sub>
 
