@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Layout } from "./components/Layout";
 import { ColdStartOverlay } from "./components/ColdStartOverlay";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { EventsPage } from "./pages/EventsPage";
@@ -14,6 +15,13 @@ import { WaitlistOfferPage } from "./pages/WaitlistOfferPage";
 import { OrganiserDashboardPage } from "./pages/OrganiserDashboardPage";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 
+// Browsing the catalog requires an account, so "/" itself is the fork: logged-out visitors get
+// the marketing landing page, everyone else gets the real events list.
+function HomeRoute() {
+  const { user } = useAuth();
+  return user ? <EventsPage /> : <LandingPage />;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -21,9 +29,23 @@ function App() {
         <ColdStartOverlay />
         <Routes>
           <Route element={<Layout />}>
-            <Route index element={<EventsPage />} />
-            <Route path="events/:eventId" element={<EventDetailPage />} />
-            <Route path="shows/:showId" element={<ShowPage />} />
+            <Route index element={<HomeRoute />} />
+            <Route
+              path="events/:eventId"
+              element={
+                <ProtectedRoute>
+                  <EventDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="shows/:showId"
+              element={
+                <ProtectedRoute>
+                  <ShowPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="login" element={<LoginPage />} />
             <Route path="register" element={<RegisterPage />} />
             <Route
