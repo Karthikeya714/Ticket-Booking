@@ -60,16 +60,20 @@ export function BookingHistoryPage() {
               <div className="text-left sm:text-right flex flex-row sm:flex-col items-center sm:items-end gap-2 shrink-0">
                 <Badge tone={booking.status === "confirmed" ? "green" : "gray"}>{booking.status}</Badge>
                 <p className="text-sm font-semibold">${booking.totalPrice}</p>
-                {booking.status === "confirmed" && (
-                  <Button
-                    variant="danger"
-                    onClick={() => handleCancel(booking.id)}
-                    disabled={cancellingId === booking.id}
-                    className="!px-3 !py-1 text-xs"
-                  >
-                    {cancellingId === booking.id ? "Cancelling..." : "Cancel"}
-                  </Button>
-                )}
+                {/* The backend refuses to cancel once the show has started, so don't offer it. */}
+                {booking.status === "confirmed" &&
+                  (new Date(booking.show.dateTime).getTime() > Date.now() ? (
+                    <Button
+                      variant="danger"
+                      onClick={() => handleCancel(booking.id)}
+                      disabled={cancellingId === booking.id}
+                      className="!px-3 !py-1 text-xs"
+                    >
+                      {cancellingId === booking.id ? "Cancelling..." : "Cancel"}
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-gray-400">Past show</span>
+                  ))}
               </div>
             </div>
           </Card>

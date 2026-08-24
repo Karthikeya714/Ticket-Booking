@@ -10,7 +10,8 @@ import { ShowPage } from "./pages/ShowPage";
 import { BookingConfirmationPage } from "./pages/BookingConfirmationPage";
 import { BookingHistoryPage } from "./pages/BookingHistoryPage";
 import { WaitlistOfferPage } from "./pages/WaitlistOfferPage";
-import { ComingSoonPage } from "./pages/ComingSoonPage";
+import { OrganiserDashboardPage } from "./pages/OrganiserDashboardPage";
+import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 
 function App() {
   return (
@@ -51,7 +52,7 @@ function App() {
               path="organiser"
               element={
                 <ProtectedRoute roles={["organiser"]}>
-                  <ComingSoonPage title="Organiser dashboard" />
+                  <OrganiserDashboardPage />
                 </ProtectedRoute>
               }
             />
@@ -59,7 +60,7 @@ function App() {
               path="admin"
               element={
                 <ProtectedRoute roles={["admin"]}>
-                  <ComingSoonPage title="Admin dashboard" />
+                  <AdminDashboardPage />
                 </ProtectedRoute>
               }
             />

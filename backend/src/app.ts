@@ -11,6 +11,8 @@ import { holdsRouter } from "./routes/holds";
 import { bookingsRouter } from "./routes/bookings";
 import { waitlistOffersRouter } from "./routes/waitlistOffers";
 import { eventsRouter } from "./routes/events";
+import { venuesRouter } from "./routes/venues";
+import { organiserRouter } from "./routes/organiser";
 
 export function createApp() {
   const app = express();
@@ -28,6 +30,8 @@ export function createApp() {
   app.use("/api/bookings", bookingsRouter);
   app.use("/api/waitlist-offers", waitlistOffersRouter);
   app.use("/api/events", eventsRouter);
+  app.use("/api/venues", venuesRouter);
+  app.use("/api/organiser", organiserRouter);
 
   app.use((req, res) => {
     res.status(404).json({ error: `No route: ${req.method} ${req.path}` });

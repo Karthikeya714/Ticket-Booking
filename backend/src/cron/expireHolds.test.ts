@@ -1,4 +1,5 @@
 import { describe, it, expect, afterAll } from "vitest";
+import { futureShowDate } from "../testFixtures";
 import bcrypt from "bcryptjs";
 import { prisma } from "../prisma";
 import { sweepExpiredHolds } from "./expireHolds";
@@ -18,7 +19,7 @@ async function makeShowWithOneSeat() {
 
   const venue = await prisma.venue.create({ data: { name: "Sweep Venue", address: "N/A", createdByAdminId: admin.id } });
   const event = await prisma.event.create({ data: { title: "Sweep Event", type: "movie", organiserId: organiser.id, description: "t" } });
-  const show = await prisma.show.create({ data: { eventId: event.id, venueId: venue.id, dateTime: new Date(), status: "scheduled" } });
+  const show = await prisma.show.create({ data: { eventId: event.id, venueId: venue.id, dateTime: futureShowDate(), status: "scheduled" } });
   const seat = await prisma.seat.create({ data: { venueId: venue.id, rowLabel: "S", seatNumber: 1, category: "STANDARD" } });
   const showSeat = await prisma.showSeat.create({ data: { showId: show.id, seatId: seat.id, status: "available" } });
 

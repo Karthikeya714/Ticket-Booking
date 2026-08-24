@@ -5,6 +5,7 @@ import { forbidden, notFound } from "../errors";
 import { type Outcome, raise } from "./outcome";
 import { withRetryOnce } from "./tx";
 import { expireIfNeeded, lockShowSeatById, lockShowSeatByShowAndSeat } from "./seatLock";
+import { checkShowBookable } from "./showGuard";
 import { generateBookingReference } from "./reference";
 import { fillWaitlistForCategory } from "./waitlist";
 import { sendBookingConfirmationEmail } from "./notifications";
@@ -19,6 +20,9 @@ export interface HoldResult {
 export async function holdSeat(showId: string, seatId: string, customerId: string): Promise<HoldResult> {
   const outcome = await withRetryOnce(() =>
     prisma.$transaction(async (tx): Promise<Outcome<HoldResult>> => {
+      const notBookable = await checkShowBookable(tx, showId);
+      if (notBookable) return notBookable;
+
       const locked = await lockShowSeatByShowAndSeat(tx, showId, seatId);
       if (!locked) return { ok: false, code: "NOT_FOUND" };
 
@@ -302,6 +306,13 @@ export async function cancelBooking(customerId: string, bookingId: string) {
       }
       if (booking.status !== "confirmed") {
         return { ok: false, code: "BOOKING_NOT_CONFIRMED", message: "This booking is already cancelled" };
+      }
+      // Cancelling frees the seats and cascades a waitlist offer to the next person in line —
+      // meaningless once the show has started, and it would email an invitation to an event
+      // that's already over. Refunds for a missed show aren't a self-service action.
+      const show = await tx.show.findUniqueOrThrow({ where: { id: booking.showId }, select: { dateTime: true } });
+      if (show.dateTime.getTime() <= Date.now()) {
+        return { ok: false, code: "SHOW_NOT_BOOKABLE", message: "This show has already started; it can no longer be cancelled" };
       }
 
       const categories = new Set<string>();

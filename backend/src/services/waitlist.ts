@@ -5,6 +5,7 @@ import { env } from "../env";
 import { type Outcome, raise } from "./outcome";
 import { withRetryOnce } from "./tx";
 import { lockShowSeatById } from "./seatLock";
+import { checkShowBookable } from "./showGuard";
 import { generateBookingReference } from "./reference";
 import { sendBookingConfirmationEmail, sendWaitlistOfferEmail } from "./notifications";
 import { broadcastSeatStatusChanged } from "../realtime";
@@ -31,8 +32,8 @@ async function countBookableSeats(tx: Prisma.TransactionClient, showId: string, 
 export async function joinWaitlist(showId: string, category: string, customerId: string) {
   const outcome = await withRetryOnce(() =>
     prisma.$transaction(async (tx): Promise<Outcome<{ waitlistEntryId: string; position: number }>> => {
-      const show = await tx.show.findUnique({ where: { id: showId } });
-      if (!show) return { ok: false, code: "NOT_FOUND", message: "Show not found" };
+      const notBookable = await checkShowBookable(tx, showId);
+      if (notBookable) return notBookable;
 
       const pricing = await tx.showSeatPricing.findUnique({
         where: { showId_category: { showId, category } },

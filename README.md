@@ -33,7 +33,8 @@ Defined in [`backend/prisma/schema.prisma`](backend/prisma/schema.prisma). Postg
 Notes:
 - `show_seats` is deliberately the row that gets locked for concurrency control (Phase 3) — it's per-show, so the same physical `seat` can be `available` on one show and `booked` on another.
 - `holds.show_seat_id` records every hold ever created for a seat (audit trail); `show_seats.current_hold_id` is a single nullable pointer to whichever hold is *currently* active for that seat, so a lookup doesn't need to scan history.
-- Seed data (`backend/prisma/seed.ts`, re-runnable — it clears venue/event/show/seat/booking data first, then rebuilds, while upserting users so accounts are stable): 1 admin, 1 organiser, 2 customers, 1 venue with 120 seats across 2 categories (PREMIUM rows A–C, 12 seats each; STANDARD rows D–I, 14 seats each), 1 event, 1 show with per-category pricing, all 120 `show_seats` initialized to `available`.
+- Seed data (`backend/prisma/seed.ts`, re-runnable — it clears venue/event/show/seat/booking data first, then rebuilds, while upserting users so accounts are stable): 1 admin, 1 organiser, 2 customers; 2 venues (Grand Cinema Hall — 120 seats, STANDARD rows A–C / PREMIUM rows D–I; Riverside Arena — 110 seats, VIP rows A–B / GENERAL rows C–G); 3 events (2 movies, 1 concert — the concert exercises the seat map's STAGE rendering rather than SCREEN); and 6 upcoming shows spread across different days so the date filter has something to filter, each with per-category pricing and all `show_seats` initialized to `available`.
+- Rows render nearest-screen-first (row A closest, since the SCREEN arc sits above the seat map). The cinema's pricing follows real-world convention: STANDARD (cheaper) up front in rows A–C, PREMIUM (pricier) further back in rows D–I — a customer can't see this from the code, only by comparing seat prices row by row, so it's called out here explicitly. The concert venue is intentionally the opposite: VIP (pricier) is nearest the stage in rows A–B, matching how concert tickets are actually priced. Pricing is per-category, set at show-creation time (`POST /api/organiser/events/:eventId/shows`) — an organiser can assign any category to any row when a venue is created, this seed data is just one convention, not an enforced rule.
 
 ### Multi-seat booking
 
@@ -188,16 +189,18 @@ Edit `.env.test` first if your local Postgres uses a different port/user/passwor
   `"admin"` is **not** an accepted value here; zod rejects it outright (400), it can't be
   silently downgraded. Admin is a provisioned-only role: an existing admin creates one via
   `POST /api/admin/users` (`requireRole("admin")`).
-- Google Sign-In only ever creates `customer` accounts (see below) — the role picker on
-  Register hides the Google button when "Organiser" is selected.
+- Google Sign-In accepts the same `role: "customer" | "organiser"` as `/api/auth/register` when
+  it creates a brand-new account (see below); it only ever applies to account *creation* — if
+  the Google identity links to an existing account, that account's role always wins.
 - Login never assigns or changes a role; it just returns whatever role is already stored on
   the account.
 
-## Google Sign-In setup (customers only)
+## Google Sign-In setup (customers and organisers)
 
-Organisers and admins are provisioned accounts and always use email+password. Customers can
-additionally sign in with Google. This requires a Google OAuth Client ID — without one,
-email+password still works everywhere and `/api/auth/google` just returns a clean 400.
+Admin is a provisioned-only role and always uses email+password. Customers and organisers can
+additionally register or sign in with Google, picking their role the same way as on the
+Register page. This requires a Google OAuth Client ID — without one, email+password still
+works everywhere and `/api/auth/google` just returns a clean 400.
 
 1. Go to [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials).
 2. Create a project if you don't have one already.
@@ -216,10 +219,46 @@ email+password still works everywhere and `/api/auth/google` just returns a clea
 8. Restart both dev servers.
 
 How it works: the frontend renders Google's Sign-In button, which returns a signed ID token
-directly to the browser (no backend involvement). The frontend POSTs that token to
-`POST /api/auth/google`; the backend verifies its signature and audience against
-`GOOGLE_CLIENT_ID` using `google-auth-library`, then finds-or-creates a `customer` user by
-Google account ID (linking by verified email if an email+password account already exists) and
-issues our own JWT exactly like `/api/auth/login` does. If an email already belongs to a
-non-customer (organiser/admin) account, the Google login is rejected — staff accounts can't be
+directly to the browser (no backend involvement). The frontend POSTs that token, along with the
+selected role, to `POST /api/auth/google`; the backend verifies the token's signature and
+audience against `GOOGLE_CLIENT_ID` using `google-auth-library`, then finds-or-creates a user by
+Google account ID with the requested `customer`/`organiser` role (linking by verified email if
+an email+password account already exists — that account's existing role wins, the requested
+role is ignored in that case), and issues our own JWT exactly like `/api/auth/login` does. If an
+email already belongs to an `admin` account, the Google login is rejected — admin can't be
 hijacked via a self-service Google signup.
+
+## Show bookability
+
+A show stops accepting new activity once it's `cancelled` or its start time has passed
+(`services/showGuard.ts`). This is enforced in three places that must agree, or the UI would
+offer actions the API rejects:
+
+- `holdSeat` and `joinWaitlist` return `SHOW_NOT_BOOKABLE` (409) — otherwise last week's seat
+  map stays fully interactive and sellable.
+- `cancelBooking` refuses too. Cancelling frees seats and cascades a waitlist *offer email* to
+  the next person in line; doing that for a finished show would invite someone to an event
+  that's already over.
+- The public catalog (`listEvents`, `getEventWithShows`) only ever returns upcoming shows, so an
+  event with no upcoming shows — newly created, or entirely in the past — doesn't appear on
+  browse as a dead-end link. The organiser dashboard uses separate queries and still shows
+  everything they own.
+
+The frontend mirrors the same rule (a banner plus disabled seats on a started/cancelled show,
+and no Cancel button on a past booking) rather than letting every click fail with a 409.
+
+## Organiser & admin dashboards
+
+- **Admin** (`/admin`, `POST /api/venues`, `GET /api/venues`): creates a venue and its seat
+  layout in one call — a list of `{ rowLabel, category, seatCount }` rows, expanded server-side
+  into individual `seats`. `GET /api/venues` is also readable by organisers (`requireRole("organiser", "admin")`),
+  since picking a venue is how they schedule a show.
+- **Organiser** (`/organiser`, `POST /api/organiser/events`, `GET /api/organiser/events`,
+  `GET /api/organiser/events/:eventId`, `POST /api/organiser/events/:eventId/shows`): creates
+  events, then schedules shows against an existing venue with per-category pricing. Creating a
+  show snapshots every one of the venue's seats into `show_seats` (all `available`) and pricing
+  into `show_seat_pricing` — the same shapes the public catalog/booking code already expects, so
+  a new show needs no special-casing to appear on the public events list and be bookable
+  immediately. Every organiser route enforces ownership (`event.organiserId === req.user.sub`);
+  the dashboard also shows tickets-sold and revenue per event/show, computed from confirmed
+  bookings and `booked` `show_seats`, not stored redundantly.

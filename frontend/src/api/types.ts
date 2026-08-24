@@ -95,6 +95,41 @@ export interface WaitlistJoinResult {
   position: number;
 }
 
+export interface Venue {
+  id: string;
+  name: string;
+  address: string;
+  seatCount: number;
+  categories: string[];
+}
+
+export interface OrganiserEventSummary {
+  id: string;
+  title: string;
+  type: "movie" | "concert";
+  description: string;
+  showCount: number;
+  ticketsSold: number;
+  totalRevenue: number;
+}
+
+export interface OrganiserShowSummary {
+  id: string;
+  dateTime: string;
+  venue: { id: string; name: string; address: string };
+  ticketsSold: number;
+  bookingsCount: number;
+  revenue: number;
+}
+
+export interface OrganiserEventDetail {
+  id: string;
+  title: string;
+  type: "movie" | "concert";
+  description: string;
+  shows: OrganiserShowSummary[];
+}
+
 export interface WaitlistOfferDetail {
   id: string;
   status: "pending" | "accepted" | "expired";

@@ -1,4 +1,5 @@
 import { describe, it, expect, afterAll } from "vitest";
+import { futureShowDate } from "../testFixtures";
 import request from "supertest";
 import bcrypt from "bcryptjs";
 import { createApp } from "../app";
@@ -17,7 +18,7 @@ async function makeShowWithSeats(seatSpecs: { category: string; price: number }[
   });
   const venue = await prisma.venue.create({ data: { name: "MC Venue", address: "N/A", createdByAdminId: admin.id } });
   const event = await prisma.event.create({ data: { title: "MC Event", type: "movie", organiserId: organiser.id, description: "t" } });
-  const show = await prisma.show.create({ data: { eventId: event.id, venueId: venue.id, dateTime: new Date(), status: "scheduled" } });
+  const show = await prisma.show.create({ data: { eventId: event.id, venueId: venue.id, dateTime: futureShowDate(), status: "scheduled" } });
 
   const categories = [...new Set(seatSpecs.map((s) => s.category))];
   for (const category of categories) {

@@ -4,7 +4,7 @@ import { apiGet, apiPost, ApiError } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useCountdown, formatCountdown } from "../hooks/useCountdown";
 import type { WaitlistOfferDetail } from "../api/types";
-import { Button, Card, ErrorBanner } from "../components/ui";
+import { Button, Card, ErrorBanner, Skeleton } from "../components/ui";
 
 export function WaitlistOfferPage() {
   const { token } = useParams<{ token: string }>();
@@ -50,7 +50,16 @@ export function WaitlistOfferPage() {
   }
 
   if (error) return <div className="max-w-md mx-auto mt-8"><ErrorBanner>{error}</ErrorBanner></div>;
-  if (!offer) return <p className="text-gray-500 max-w-md mx-auto mt-16 text-center">Loading...</p>;
+  if (!offer)
+    return (
+      <div className="max-w-md mx-auto mt-4 sm:mt-8">
+        <Card className="p-6 sm:p-10">
+          <Skeleton className="h-6 w-2/3 mx-auto mb-3" />
+          <Skeleton className="h-4 w-1/2 mx-auto mb-6" />
+          <Skeleton className="h-10 w-full" />
+        </Card>
+      </div>
+    );
 
   const expired = offer.status !== "pending" || remainingSeconds <= 0;
 

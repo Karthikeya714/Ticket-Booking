@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { useSeatMapSocket } from "../hooks/useSeatMapSocket";
 import { useCountdown, formatCountdown } from "../hooks/useCountdown";
 import type { HoldResult, HoldStatus, SeatMapEntry, SeatStatus, ShowDetail } from "../api/types";
-import { Badge, Button, Card, ErrorBanner, InfoBanner } from "../components/ui";
+import { Badge, Button, Card, ErrorBanner, InfoBanner, Skeleton } from "../components/ui";
 
 function seatColor(status: SeatStatus, isMine: boolean): string {
   if (isMine) return "bg-indigo-600 text-white border-indigo-600 shadow-sm scale-105";
@@ -186,14 +186,36 @@ export function ShowPage() {
   }
 
   if (error && seats.length === 0) return <ErrorBanner>{error}</ErrorBanner>;
-  if (!show) return <p className="text-gray-500">Loading...</p>;
+  if (!show)
+    return (
+      <div className="max-w-3xl mx-auto">
+        <Skeleton className="h-8 w-1/2 mb-3" />
+        <Skeleton className="h-4 w-2/5 mb-6" />
+        <Card className="p-6">
+          <Skeleton className="h-8 w-full max-w-sm mx-auto mb-6" />
+          <Skeleton className="h-4 w-3/4 mb-5" />
+          <div className="flex flex-col gap-2.5">
+            {Array.from({ length: 5 }, (_, i) => (
+              <Skeleton key={i} className="h-9 w-full" />
+            ))}
+          </div>
+        </Card>
+      </div>
+    );
 
   const rows = [...new Set(seats.map((s) => s.rowLabel))].sort();
   const categories = [...new Set(seats.map((s) => s.category))];
+  const widestRowSeats = rows.reduce((max, r) => Math.max(max, seats.filter((s) => s.rowLabel === r).length), 0);
   // Organiser/admin accounts can view any show's seat map, but booking and waitlisting are
   // customer-only (the backend already enforces this — requireRole("customer") on both
   // endpoints — this just keeps the UI from offering an action that would 403).
   const isStaffViewing = user !== null && user.role !== "customer";
+  // The backend refuses holds on a show that's started or been cancelled (services/showGuard.ts).
+  // Such shows are already hidden from browse, but a direct link still lands here — so mirror the
+  // rule in the UI rather than letting every seat click fail with a 409.
+  const showStarted = new Date(show.dateTime).getTime() <= Date.now();
+  const showCancelled = show.status === "cancelled";
+  const seatsLocked = isStaffViewing || showStarted || showCancelled;
   const heldSeatIds = new Set(heldSeats.map((hs) => hs.seatId));
   const selectedSeats = heldSeats
     .map((hs) => seats.find((s) => s.seatId === hs.seatId))
@@ -216,18 +238,33 @@ export function ShowPage() {
 
       <div className="mt-4 flex flex-col gap-2">
         {error && <ErrorBanner>{error}</ErrorBanner>}
-        {isStaffViewing && (
+        {showCancelled && <InfoBanner>This show has been cancelled and is no longer bookable.</InfoBanner>}
+        {!showCancelled && showStarted && (
+          <InfoBanner>This show has already started — seats can no longer be booked.</InfoBanner>
+        )}
+        {isStaffViewing && !showStarted && !showCancelled && (
           <InfoBanner>
             You're viewing this as {user!.role === "admin" ? "an admin" : "an organiser"} — booking and joining the
             waitlist are only available on a customer account.
           </InfoBanner>
         )}
-        {!isStaffViewing && (
+        {!seatsLocked && (
           <p className="text-sm text-gray-500">Click seats to select — you can pick more than one before checking out.</p>
         )}
       </div>
 
       <Card className="p-4 sm:p-6 mt-4">
+        {/* Sized to roughly span the widest seat row so the arc reads as being *over* the
+            seating, rather than a narrow line floating above it. */}
+        <div className="flex flex-col items-center mb-6" style={{ maxWidth: `${widestRowSeats * 42}px`, margin: "0 auto 1.5rem" }}>
+          <svg viewBox="0 0 400 36" className="w-full h-6 sm:h-8 text-gray-700" preserveAspectRatio="none">
+            <path d="M10,32 Q200,-6 390,32" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+          </svg>
+          <p className="text-[10px] sm:text-xs font-semibold tracking-[0.2em] text-gray-400 mt-1">
+            {show.event.type === "movie" ? "SCREEN" : "STAGE"}
+          </p>
+        </div>
+
         <div className="flex gap-3 sm:gap-5 text-xs sm:text-sm mb-5 flex-wrap">
           <span className="flex items-center gap-1.5">
             <span className="w-3.5 h-3.5 inline-block bg-white border border-gray-300 rounded shrink-0" /> Available
@@ -243,37 +280,46 @@ export function ShowPage() {
           </span>
         </div>
 
-        {/* Each row scrolls horizontally on narrow screens instead of wrapping mid-row, so the
-            seat layout keeps reading left-to-right like a real theater map. */}
-        <div className="flex flex-col gap-2.5 -mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto">
-          {rows.map((row) => (
-            <div key={row} className="flex items-center gap-2 sm:gap-3 w-max sm:w-auto">
-              <span className="w-4 sm:w-5 text-sm font-medium text-gray-400 shrink-0">{row}</span>
-              <div className="flex gap-1.5 sm:gap-2">
-                {seats
-                  .filter((s) => s.rowLabel === row)
-                  .sort((a, b) => a.seatNumber - b.seatNumber)
-                  .map((seat) => {
-                    const isMine = heldSeatIds.has(seat.seatId);
-                    return (
-                      <button
-                        key={seat.seatId}
-                        disabled={busy || isStaffViewing || (seat.status !== "available" && !isMine)}
-                        onClick={() => handleSeatClick(seat)}
-                        title={`${seat.rowLabel}${seat.seatNumber} — ${seat.category} — $${seat.price}`}
-                        className={`w-9 h-9 shrink-0 text-xs font-medium rounded-md border flex items-center justify-center transition-all touch-manipulation ${seatColor(seat.status, isMine)} ${isStaffViewing ? "opacity-60 cursor-not-allowed" : ""}`}
-                      >
-                        {seat.seatNumber}
-                      </button>
-                    );
-                  })}
+        {/* Rows scroll horizontally as one block on narrow screens instead of wrapping mid-row,
+            so the layout keeps reading left-to-right like a real theater map. Rows are centred
+            on each other (`justify-center`) rather than left-aligned, so a short 12-seat row sits
+            symmetrically inside a wider 14-seat one the way real seating charts do. */}
+        <div className="-mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto">
+          <div className="flex flex-col gap-2.5 w-max mx-auto">
+            {rows.map((row) => (
+              <div key={row} className="flex items-center gap-2 sm:gap-3">
+                <span className="w-4 sm:w-5 text-sm font-medium text-gray-400 shrink-0 text-right">{row}</span>
+                <div className="flex gap-1.5 sm:gap-2 flex-1 justify-center">
+                  {seats
+                    .filter((s) => s.rowLabel === row)
+                    .sort((a, b) => a.seatNumber - b.seatNumber)
+                    .map((seat) => {
+                      const isMine = heldSeatIds.has(seat.seatId);
+                      return (
+                        <button
+                          key={seat.seatId}
+                          disabled={busy || seatsLocked || (seat.status !== "available" && !isMine)}
+                          onClick={() => handleSeatClick(seat)}
+                          title={`${seat.rowLabel}${seat.seatNumber} — ${seat.category} — $${seat.price}`}
+                          aria-label={`Seat ${seat.rowLabel}${seat.seatNumber}, ${seat.category}, $${seat.price}, ${isMine ? "selected" : seat.status}`}
+                          className={`w-9 h-9 shrink-0 text-xs font-medium rounded-md border flex items-center justify-center transition-all touch-manipulation ${seatColor(seat.status, isMine)} ${seatsLocked ? "opacity-60 cursor-not-allowed" : ""}`}
+                        >
+                          {seat.seatNumber}
+                        </button>
+                      );
+                    })}
+                </div>
+                {/* Mirrors the left gutter — real seating charts label both ends, and the symmetry
+                    is also what keeps the seat block centred on the same axis as the SCREEN arc
+                    (a left-only label would push the seats right by half the gutter). */}
+                <span className="w-4 sm:w-5 text-sm font-medium text-gray-400 shrink-0">{row}</span>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </Card>
 
-      {!isStaffViewing && categories.some((c) => !seats.some((s) => s.category === c && s.status === "available")) && (
+      {!seatsLocked && categories.some((c) => !seats.some((s) => s.category === c && s.status === "available")) && (
         <Card className="p-5 mt-4 flex flex-col gap-2">
           <h3 className="font-medium text-gray-900 text-sm">Sold out categories</h3>
           <div className="flex gap-2 flex-wrap">

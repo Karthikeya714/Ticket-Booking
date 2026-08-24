@@ -1,9 +1,15 @@
-import { Link, Outlet } from "react-router-dom";
+import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "./ui";
 
 export function Layout() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    logout();
+    navigate("/login");
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
@@ -33,7 +39,7 @@ export function Layout() {
             {user ? (
               <>
                 <span className="text-gray-500 hidden md:inline">{user.name}</span>
-                <Button variant="secondary" onClick={logout} className="!py-1.5">
+                <Button variant="secondary" onClick={handleLogout} className="!py-1.5">
                   Log out
                 </Button>
               </>

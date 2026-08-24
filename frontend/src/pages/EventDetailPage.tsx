@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { apiGet } from "../api/client";
 import type { EventDetail } from "../api/types";
-import { Badge, Card, ErrorBanner } from "../components/ui";
+import { Badge, Card, CardListSkeleton, ErrorBanner, Skeleton } from "../components/ui";
 
 export function EventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -17,7 +17,14 @@ export function EventDetailPage() {
   }, [eventId]);
 
   if (error) return <ErrorBanner>{error}</ErrorBanner>;
-  if (!event) return <p className="text-gray-500">Loading...</p>;
+  if (!event)
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Skeleton className="h-8 w-1/2 mb-3" />
+        <Skeleton className="h-4 w-3/4 mb-6" />
+        <CardListSkeleton rows={2} />
+      </div>
+    );
 
   return (
     <div className="max-w-2xl mx-auto">

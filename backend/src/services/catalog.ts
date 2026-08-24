@@ -1,5 +1,6 @@
 import { prisma } from "../prisma";
 import { notFound } from "../errors";
+import { upcomingShowWhere } from "./showGuard";
 import type { EventType } from "@prisma/client";
 
 export interface EventListFilters {
@@ -20,19 +21,20 @@ function dayRangeUTC(date: Date): { gte: Date; lt: Date } {
 
 export async function listEvents(filters: EventListFilters) {
   const showDateFilter = filters.date ? dayRangeUTC(filters.date) : undefined;
+  const showWhere = upcomingShowWhere(showDateFilter);
 
   const events = await prisma.event.findMany({
     where: {
       ...(filters.type ? { type: filters.type } : {}),
       ...(filters.search ? { title: { contains: filters.search, mode: "insensitive" } } : {}),
-      ...(showDateFilter ? { shows: { some: { status: "scheduled", dateTime: showDateFilter } } } : {}),
+      // Browsing is for finding something to book, so an event only appears once it actually has
+      // an upcoming show — that hides both a just-created event with no shows yet and one whose
+      // shows have all passed, instead of listing dead-end links a customer can't act on.
+      shows: { some: showWhere },
     },
     include: {
       organiser: { select: { name: true } },
-      shows: {
-        where: { status: "scheduled", ...(showDateFilter ? { dateTime: showDateFilter } : {}) },
-        select: { id: true, dateTime: true },
-      },
+      shows: { where: showWhere, select: { id: true, dateTime: true } },
     },
     orderBy: { title: "asc" },
   });
@@ -49,6 +51,13 @@ export async function listEvents(filters: EventListFilters) {
 }
 
 export async function getEventWithShows(eventId: string, dateFilter?: { from?: Date; to?: Date }) {
+  // Only upcoming shows are listed — a past showtime isn't something a customer can act on, and
+  // holding a seat on one is rejected by checkShowBookable anyway. A caller-supplied `from` can
+  // narrow that window but never widen it back into the past, hence the max() rather than a
+  // spread that would overwrite the guard.
+  const now = new Date();
+  const from = dateFilter?.from && dateFilter.from > now ? dateFilter.from : now;
+
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     include: {
@@ -56,14 +65,7 @@ export async function getEventWithShows(eventId: string, dateFilter?: { from?: D
       shows: {
         where: {
           status: "scheduled",
-          ...(dateFilter?.from || dateFilter?.to
-            ? {
-                dateTime: {
-                  ...(dateFilter.from ? { gte: dateFilter.from } : {}),
-                  ...(dateFilter.to ? { lte: dateFilter.to } : {}),
-                },
-              }
-            : {}),
+          dateTime: { gte: from, ...(dateFilter?.to ? { lte: dateFilter.to } : {}) },
         },
         include: { venue: true, pricing: true },
         orderBy: { dateTime: "asc" },

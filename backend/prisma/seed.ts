@@ -63,78 +63,104 @@ async function main() {
     },
   });
 
-  const venue = await prisma.venue.create({
-    data: {
-      name: "Grand Cinema Hall",
-      address: "123 Main Street, Springfield",
-      createdByAdminId: admin.id,
-    },
-  });
+  const DAY = 24 * 60 * 60 * 1000;
 
-  // 2 categories, sized like a real small cinema hall: PREMIUM (rows A-C, 12 seats each = 36)
-  // and STANDARD (rows D-I, 14 seats each = 84) — 120 seats total.
-  const seatRows: { row: string; category: string; seatCount: number }[] = [
-    { row: "A", category: "PREMIUM", seatCount: 12 },
-    { row: "B", category: "PREMIUM", seatCount: 12 },
-    { row: "C", category: "PREMIUM", seatCount: 12 },
-    { row: "D", category: "STANDARD", seatCount: 14 },
-    { row: "E", category: "STANDARD", seatCount: 14 },
-    { row: "F", category: "STANDARD", seatCount: 14 },
-    { row: "G", category: "STANDARD", seatCount: 14 },
-    { row: "H", category: "STANDARD", seatCount: 14 },
-    { row: "I", category: "STANDARD", seatCount: 14 },
-  ];
-
-  const seats = [];
-  for (const { row, category, seatCount } of seatRows) {
-    for (let n = 1; n <= seatCount; n++) {
-      seats.push({ venueId: venue.id, rowLabel: row, seatNumber: n, category });
-    }
+  async function makeVenue(name: string, address: string, rows: { row: string; category: string; seatCount: number }[]) {
+    const venue = await prisma.venue.create({ data: { name, address, createdByAdminId: admin.id } });
+    const seats = rows.flatMap(({ row, category, seatCount }) =>
+      Array.from({ length: seatCount }, (_, i) => ({ venueId: venue.id, rowLabel: row, seatNumber: i + 1, category }))
+    );
+    await prisma.seat.createMany({ data: seats });
+    return { venue, seats: await prisma.seat.findMany({ where: { venueId: venue.id } }) };
   }
-  await prisma.seat.createMany({ data: seats });
-  const allSeats = await prisma.seat.findMany({ where: { venueId: venue.id } });
 
-  const event = await prisma.event.create({
+  // Snapshots the venue's seats into the show and locks in per-category pricing — exactly what
+  // the organiser dashboard's "add show" flow does, so seeded and UI-created shows are identical.
+  async function makeShow(eventId: string, v: Awaited<ReturnType<typeof makeVenue>>, daysOut: number, hour: number, pricing: Record<string, number>) {
+    const dateTime = new Date(Date.now() + daysOut * DAY);
+    dateTime.setHours(hour, 0, 0, 0);
+    const show = await prisma.show.create({ data: { eventId, venueId: v.venue.id, dateTime, status: "scheduled" } });
+    await prisma.showSeatPricing.createMany({
+      data: Object.entries(pricing).map(([category, price]) => ({ showId: show.id, category, price })),
+    });
+    await prisma.showSeat.createMany({
+      data: v.seats.map((seat) => ({ showId: show.id, seatId: seat.id, status: "available" as const })),
+    });
+    return show;
+  }
+
+  // A 120-seat cinema. Rows render nearest-screen-first (A closest, per the SCREEN arc above the
+  // seat map), so — matching real cinemas, where the front rows are the less desirable ones —
+  // STANDARD (cheaper) is up front and PREMIUM (pricier) is further back: STANDARD rows A-C,
+  // PREMIUM rows D-I.
+  const cinema = await makeVenue("Grand Cinema Hall", "123 Main Street, Springfield", [
+    { row: "A", category: "STANDARD", seatCount: 12 },
+    { row: "B", category: "STANDARD", seatCount: 12 },
+    { row: "C", category: "STANDARD", seatCount: 12 },
+    { row: "D", category: "PREMIUM", seatCount: 14 },
+    { row: "E", category: "PREMIUM", seatCount: 14 },
+    { row: "F", category: "PREMIUM", seatCount: 14 },
+    { row: "G", category: "PREMIUM", seatCount: 14 },
+    { row: "H", category: "PREMIUM", seatCount: 14 },
+    { row: "I", category: "PREMIUM", seatCount: 14 },
+  ]);
+
+  // A 110-seat concert arena — gives the seat map a STAGE (not SCREEN) to render against.
+  const arena = await makeVenue("Riverside Arena", "9 Riverside Walk, Springfield", [
+    { row: "A", category: "VIP", seatCount: 10 },
+    { row: "B", category: "VIP", seatCount: 10 },
+    { row: "C", category: "GENERAL", seatCount: 18 },
+    { row: "D", category: "GENERAL", seatCount: 18 },
+    { row: "E", category: "GENERAL", seatCount: 18 },
+    { row: "F", category: "GENERAL", seatCount: 18 },
+    { row: "G", category: "GENERAL", seatCount: 18 },
+  ]);
+
+  const premiere = await prisma.event.create({
     data: {
       title: "The Great Movie Premiere",
       type: "movie",
       organiserId: organiser.id,
-      description: "An exclusive premiere screening.",
+      description: "An exclusive premiere screening, with the director in attendance.",
     },
   });
-
-  const show = await prisma.show.create({
+  const indieFest = await prisma.event.create({
     data: {
-      eventId: event.id,
-      venueId: venue.id,
-      dateTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      status: "scheduled",
+      title: "Indie Film Festival",
+      type: "movie",
+      organiserId: organiser.id,
+      description: "Three days of independent cinema from around the world.",
+    },
+  });
+  const rockNight = await prisma.event.create({
+    data: {
+      title: "Riverside Rock Night",
+      type: "concert",
+      organiserId: organiser.id,
+      description: "An open-air night of live rock from four headline acts.",
     },
   });
 
-  await prisma.showSeatPricing.createMany({
-    data: [
-      { showId: show.id, category: "PREMIUM", price: 25.0 },
-      { showId: show.id, category: "STANDARD", price: 15.0 },
-    ],
-  });
-
-  await prisma.showSeat.createMany({
-    data: allSeats.map((seat) => ({
-      showId: show.id,
-      seatId: seat.id,
-      status: "available" as const,
-    })),
-  });
+  // Several shows across different days so the date filter has something to filter.
+  const cinemaPricing = { PREMIUM: 25.0, STANDARD: 15.0 };
+  const arenaPricing = { VIP: 80.0, GENERAL: 45.0 };
+  const shows = [
+    await makeShow(premiere.id, cinema, 3, 19, cinemaPricing),
+    await makeShow(premiere.id, cinema, 5, 21, cinemaPricing),
+    await makeShow(indieFest.id, cinema, 7, 18, cinemaPricing),
+    await makeShow(indieFest.id, cinema, 8, 18, cinemaPricing),
+    await makeShow(rockNight.id, arena, 10, 20, arenaPricing),
+    await makeShow(rockNight.id, arena, 14, 20, arenaPricing),
+  ];
 
   console.log("Seed complete:");
   console.log(`  admin:     admin@example.com / password123`);
   console.log(`  organiser: organiser@example.com / password123`);
   console.log(`  customer:  customer@example.com / password123`);
   console.log(`  customer2: customer2@example.com / password123`);
-  console.log(`  venue:     ${venue.id} (${venue.name})`);
-  console.log(`  event:     ${event.id} (${event.title})`);
-  console.log(`  show:      ${show.id} with ${allSeats.length} seats`);
+  console.log(`  venues:    ${cinema.venue.name} (${cinema.seats.length} seats), ${arena.venue.name} (${arena.seats.length} seats)`);
+  console.log(`  events:    3 (2 movies, 1 concert)`);
+  console.log(`  shows:     ${shows.length}, all upcoming`);
 }
 
 main()

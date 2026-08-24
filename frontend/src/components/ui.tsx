@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
 type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 
@@ -31,6 +31,15 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
+export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      {...props}
+      className={`w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 ${props.className ?? ""}`}
+    />
+  );
+}
+
 export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
@@ -54,6 +63,25 @@ const badgeTones = {
 
 export function Badge({ children, tone = "gray" }: { children: ReactNode; tone?: keyof typeof badgeTones }) {
   return <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${badgeTones[tone]}`}>{children}</span>;
+}
+
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded bg-gray-200 ${className}`} />;
+}
+
+// Placeholder rows shaped roughly like the list they stand in for, so the page doesn't visibly
+// jump from an empty state to content once the request lands.
+export function CardListSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="flex flex-col gap-3">
+      {Array.from({ length: rows }, (_, i) => (
+        <Card key={i} className="p-5">
+          <Skeleton className="h-5 w-2/5 mb-2.5" />
+          <Skeleton className="h-4 w-3/5" />
+        </Card>
+      ))}
+    </div>
+  );
 }
 
 export function PageHeading({ children, subtitle }: { children: ReactNode; subtitle?: ReactNode }) {

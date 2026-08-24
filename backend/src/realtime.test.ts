@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { futureShowDate } from "./testFixtures";
 import http from "http";
 import type { AddressInfo } from "net";
 import request from "supertest";
@@ -43,7 +44,7 @@ async function makeShowWithSeat() {
   });
   const venue = await prisma.venue.create({ data: { name: "RT Venue", address: "N/A", createdByAdminId: admin.id } });
   const event = await prisma.event.create({ data: { title: "RT Event", type: "movie", organiserId: organiser.id, description: "t" } });
-  const show = await prisma.show.create({ data: { eventId: event.id, venueId: venue.id, dateTime: new Date(), status: "scheduled" } });
+  const show = await prisma.show.create({ data: { eventId: event.id, venueId: venue.id, dateTime: futureShowDate(), status: "scheduled" } });
   await prisma.showSeatPricing.create({ data: { showId: show.id, category: "STANDARD", price: 15 } });
   const seat = await prisma.seat.create({ data: { venueId: venue.id, rowLabel: "R", seatNumber: 1, category: "STANDARD" } });
   await prisma.showSeat.create({ data: { showId: show.id, seatId: seat.id, status: "available" } });

@@ -1,36 +1,93 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiGet } from "../api/client";
+import { useAuth } from "../context/AuthContext";
 import type { EventSummary } from "../api/types";
-import { Badge, Card, ErrorBanner, Input, PageHeading, Select } from "../components/ui";
+import { Badge, Button, Card, CardListSkeleton, ErrorBanner, Input, PageHeading, Select } from "../components/ui";
 
 export function EventsPage() {
+  const { user } = useAuth();
   const [events, setEvents] = useState<EventSummary[]>([]);
   const [type, setType] = useState<"" | "movie" | "concert">("");
   const [search, setSearch] = useState("");
   const [date, setDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Skeletons belong on the first paint only. Re-running a filter with results already on screen
+  // should refine them in place, not blank the list back to placeholders on every keystroke.
+  const hasLoaded = useRef(false);
+
+  // Typing "Indie" would otherwise fire five requests, each racing the last. Debouncing also
+  // means the list stops churning while the user is mid-word.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     const params = new URLSearchParams();
     if (type) params.set("type", type);
-    if (search) params.set("search", search);
+    if (debouncedSearch) params.set("search", debouncedSearch);
     if (date) params.set("date", date);
     setLoading(true);
+
+    let cancelled = false;
     apiGet<{ events: EventSummary[] }>(`/api/events?${params.toString()}`)
-      .then((res) => setEvents(res.events))
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load events"))
-      .finally(() => setLoading(false));
-  }, [type, search, date]);
+      .then((res) => {
+        if (cancelled) return; // a newer filter already superseded this response
+        setEvents(res.events);
+        setError(null);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load events");
+      })
+      .finally(() => {
+        if (cancelled) return;
+        hasLoaded.current = true;
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [type, debouncedSearch, date]);
+
+  const showSkeleton = loading && !hasLoaded.current;
 
   return (
     <div className="max-w-3xl mx-auto">
       <PageHeading subtitle="Find something to see and grab your seat.">Browse events</PageHeading>
 
+      {/* Browse is the app's landing page for every role, so staff arriving here would otherwise
+          have to know to look in the nav for the tools they actually came for. */}
+      {(user?.role === "organiser" || user?.role === "admin") && (
+        <Card className="p-4 mb-6 flex items-center justify-between gap-3 flex-wrap bg-indigo-50/60 border-indigo-100">
+          <p className="text-sm text-gray-700">
+            {user.role === "organiser"
+              ? "Want to host an event? Create events and schedule shows from your dashboard."
+              : "Manage venues and seat layouts from your dashboard."}
+          </p>
+          <Link to={user.role === "organiser" ? "/organiser" : "/admin"} className="shrink-0">
+            <Button>Go to dashboard</Button>
+          </Link>
+        </Card>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <Input type="text" placeholder="Search by title" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <Select value={type} onChange={(e) => setType(e.target.value as typeof type)} className="sm:w-44">
+        <Input
+          type="text"
+          placeholder="Search by title"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search events by title"
+        />
+        <Select
+          value={type}
+          onChange={(e) => setType(e.target.value as typeof type)}
+          className="sm:w-44"
+          aria-label="Filter by event type"
+        >
           <option value="">All types</option>
           <option value="movie">Movies</option>
           <option value="concert">Concerts</option>
@@ -56,13 +113,22 @@ export function EventsPage() {
         </div>
       </div>
 
-      {loading && <p className="text-gray-500">Loading...</p>}
+      {showSkeleton && <CardListSkeleton />}
       {error && <ErrorBanner>{error}</ErrorBanner>}
-      {!loading && !error && events.length === 0 && (
-        <Card className="p-8 text-center text-gray-500">No events found.</Card>
+      {!showSkeleton && !error && events.length === 0 && (
+        <Card className="p-10 text-center">
+          <div className="text-3xl mb-2">🔍</div>
+          <p className="font-medium text-gray-900">No events found</p>
+          <p className="text-sm text-gray-500 mt-1">
+            {search || type || date
+              ? "Try clearing your filters to see everything on offer."
+              : "There are no upcoming events right now — check back soon."}
+          </p>
+        </Card>
       )}
 
-      <div className="flex flex-col gap-3">
+      {/* Dimmed rather than replaced while a filter is in flight, so the list stays readable. */}
+      <div className={`flex flex-col gap-3 transition-opacity ${loading && hasLoaded.current ? "opacity-50" : ""}`}>
         {events.map((event) => (
           <Link key={event.id} to={`/events/${event.id}`}>
             <Card className="p-5 hover:border-indigo-300 hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2">

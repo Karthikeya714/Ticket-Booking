@@ -12,7 +12,8 @@ export type OutcomeCode =
   | "OFFER_EXPIRED"
   | "SEATS_AVAILABLE"
   | "ALREADY_WAITING"
-  | "BOOKING_NOT_CONFIRMED";
+  | "BOOKING_NOT_CONFIRMED"
+  | "SHOW_NOT_BOOKABLE";
 
 export type Outcome<T> = { ok: true; value: T } | { ok: false; code: OutcomeCode; message?: string };
 
@@ -34,6 +35,8 @@ export function raise(code: OutcomeCode, message?: string): never {
       throw conflict(message ?? "You are already on the waitlist for this category");
     case "BOOKING_NOT_CONFIRMED":
       throw conflict(message ?? "This booking is not confirmed");
+    case "SHOW_NOT_BOOKABLE":
+      throw conflict(message ?? "This show has already started or been cancelled");
     default: {
       const exhaustive: never = code;
       throw new AppError(500, `Unhandled outcome: ${exhaustive}`);
