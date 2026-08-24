@@ -1,13 +1,13 @@
 import { env } from "../env";
 import { prisma } from "../prisma";
-import { sendEmail } from "./mailer";
+import { getTransporter } from "./mailer";
 import { generateBookingQrPng } from "./qr";
 import { renderBookingConfirmationEmail, renderWaitlistOfferEmail } from "./emailTemplates";
 
 // Every function here is fire-and-forget from the caller's perspective: it never throws, so a
 // booking/offer transaction that already committed can never be undone by an email failing to
-// send. Without BREVO_API_KEY configured, sends fall back to a console log instead of erroring,
-// so the booking/waitlist flows stay fully testable without a real API key.
+// send. Without SMTP_USER/SMTP_APP_PASSWORD configured, sends fall back to a console log instead
+// of erroring, so the booking/waitlist flows stay fully testable without real Gmail credentials.
 
 export async function sendBookingConfirmationEmail(bookingId: string): Promise<void> {
   try {
@@ -29,7 +29,8 @@ export async function sendBookingConfirmationEmail(bookingId: string): Promise<v
     }));
     const seatLabels = seats.map((s) => s.label).join(", ");
 
-    if (!env.brevoApiKey) {
+    const transport = getTransporter();
+    if (!transport) {
       console.log(
         `[email:stub] booking confirmation -> ${booking.customer.email} | ${booking.show.event.title} | ` +
           `seats ${seatLabels} | ref ${booking.bookingReference}`
@@ -48,10 +49,10 @@ export async function sendBookingConfirmationEmail(bookingId: string): Promise<v
       seats,
       totalPrice: Number(booking.totalPrice),
       bookingReference: booking.bookingReference,
-      qrDataUri: `data:image/png;base64,${qrPng.toString("base64")}`,
     });
 
-    const result = await sendEmail({
+    await transport.sendMail({
+      from: env.emailFrom,
       to: booking.customer.email,
       subject: email.subject,
       // A text alternative alongside html isn't just a nicety — mail with only an HTML part is
@@ -59,9 +60,10 @@ export async function sendBookingConfirmationEmail(bookingId: string): Promise<v
       // almost always includes both.
       text: email.text,
       html: email.html,
-      attachments: [{ filename: "ticket-qr.png", content: qrPng }],
+      attachments: [{ filename: "ticket-qr.png", content: qrPng, cid: "booking-qr" }],
+    }).then((info) => {
+      console.log(`[email] booking confirmation sent -> ${booking.customer.email} | ${info.response}`);
     });
-    console.log(`[email] booking confirmation sent -> ${booking.customer.email} | ${result?.messageId}`);
   } catch (err) {
     console.error("[email] failed to send booking confirmation:", err);
   }
@@ -82,7 +84,8 @@ export async function sendWaitlistOfferEmail(params: WaitlistOfferEmail): Promis
   const link = `${env.frontendUrl}/waitlist-offer/${params.token}`;
 
   try {
-    if (!env.brevoApiKey) {
+    const transport = getTransporter();
+    if (!transport) {
       console.log(
         `[email:stub] waitlist offer -> ${params.to} | ${params.eventTitle} seat ${params.seatLabel} | ` +
           `expires ${params.offerExpiresAt.toISOString()} | ${link}`
@@ -98,8 +101,15 @@ export async function sendWaitlistOfferEmail(params: WaitlistOfferEmail): Promis
       link,
     });
 
-    const result = await sendEmail({ to: params.to, subject: email.subject, text: email.text, html: email.html });
-    console.log(`[email] waitlist offer sent -> ${params.to} | ${result?.messageId}`);
+    await transport.sendMail({
+      from: env.emailFrom,
+      to: params.to,
+      subject: email.subject,
+      text: email.text,
+      html: email.html,
+    }).then((info) => {
+      console.log(`[email] waitlist offer sent -> ${params.to} | ${info.response}`);
+    });
   } catch (err) {
     console.error("[email] failed to send waitlist offer email:", err);
   }

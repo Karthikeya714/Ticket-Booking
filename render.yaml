@@ -38,10 +38,9 @@ services:
         value: 15
       - key: GOOGLE_CLIENT_ID
         sync: false
-      # Brevo, not raw SMTP — Render's free tier blocks outbound SMTP ports (25/465/587)
-      # entirely, so Nodemailer/Gmail can never work here regardless of credentials. See
-      # services/mailer.ts and the README's Deployment section for the sender-verification steps.
-      - key: BREVO_API_KEY
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_APP_PASSWORD
         sync: false
       - key: EMAIL_FROM
         sync: false

@@ -65,10 +65,6 @@ export interface BookingEmailData {
   seats: BookingEmailSeat[];
   totalPrice: number;
   bookingReference: string;
-  // A data: URI, not a cid: reference — Brevo's transactional API doesn't support inline
-  // cid-attachment images at all, but every mainstream mail client (Gmail included, which is
-  // this app's actual target) renders a base64-embedded image just fine.
-  qrDataUri: string;
 }
 
 export function renderBookingConfirmationEmail(data: BookingEmailData): { subject: string; html: string; text: string } {
@@ -120,7 +116,7 @@ export function renderBookingConfirmationEmail(data: BookingEmailData): { subjec
 
     <div style="text-align:center;">
       <p style="margin:0 0 12px;font-size:13px;color:${TEXT_MUTED};">Show this QR code at entry</p>
-      <img src="${data.qrDataUri}" width="180" height="180" alt="Booking QR code" style="border:8px solid #f9fafb;border-radius:12px;" />
+      <img src="cid:booking-qr" width="180" height="180" alt="Booking QR code" style="border:8px solid #f9fafb;border-radius:12px;" />
     </div>
   `;
 
