@@ -7,12 +7,16 @@ import { useCountdown, formatCountdown } from "../hooks/useCountdown";
 import type { HoldResult, HoldStatus, SeatMapEntry, SeatStatus, ShowDetail } from "../api/types";
 import { Badge, Button, Card, ErrorBanner, InfoBanner, Skeleton } from "../components/ui";
 
+// Keep these four in lockstep with the legend swatches rendered below — the legend is the only
+// thing telling a customer what each colour means, so a change here without a matching change
+// there silently makes the map unreadable.
 function seatColor(status: SeatStatus, isMine: boolean): string {
-  if (isMine) return "bg-indigo-600 text-white border-indigo-600 shadow-sm scale-105";
+  if (isMine)
+    return "bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white border-violet-600 shadow-md shadow-violet-500/40 scale-110";
   if (status === "available")
-    return "bg-white border-gray-300 hover:bg-emerald-50 hover:border-emerald-400 hover:scale-105 cursor-pointer";
+    return "bg-white border-slate-300 text-slate-600 hover:bg-emerald-50 hover:border-emerald-400 hover:text-emerald-700 hover:scale-110 hover:shadow-md cursor-pointer";
   if (status === "held") return "bg-amber-100 border-amber-300 text-amber-700 cursor-not-allowed";
-  return "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"; // booked
+  return "bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed"; // booked
 }
 
 interface HeldSeat {
@@ -256,27 +260,38 @@ export function ShowPage() {
       <Card className="p-4 sm:p-6 mt-4">
         {/* Sized to roughly span the widest seat row so the arc reads as being *over* the
             seating, rather than a narrow line floating above it. */}
-        <div className="flex flex-col items-center mb-6" style={{ maxWidth: `${widestRowSeats * 42}px`, margin: "0 auto 1.5rem" }}>
-          <svg viewBox="0 0 400 36" className="w-full h-6 sm:h-8 text-gray-700" preserveAspectRatio="none">
-            <path d="M10,32 Q200,-6 390,32" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+        <div className="flex flex-col items-center mb-7" style={{ maxWidth: `${widestRowSeats * 42}px`, margin: "0 auto 1.75rem" }}>
+          {/* The arc gets a soft glow beneath it so it reads as a lit screen/stage rather than
+              a plain stroke. */}
+          <svg viewBox="0 0 400 40" className="w-full h-7 sm:h-9" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="screenGlow" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#c4b5fd" />
+                <stop offset="50%" stopColor="#7c3aed" />
+                <stop offset="100%" stopColor="#c4b5fd" />
+              </linearGradient>
+            </defs>
+            <path d="M10,34 Q200,-4 390,34" fill="none" stroke="url(#screenGlow)" strokeWidth="10" strokeLinecap="round" opacity="0.18" />
+            <path d="M10,34 Q200,-4 390,34" fill="none" stroke="url(#screenGlow)" strokeWidth="3.5" strokeLinecap="round" />
           </svg>
-          <p className="text-[10px] sm:text-xs font-semibold tracking-[0.2em] text-gray-400 mt-1">
+          <p className="text-[10px] sm:text-xs font-bold tracking-[0.25em] text-violet-400 mt-1.5">
             {show.event.type === "movie" ? "SCREEN" : "STAGE"}
           </p>
         </div>
 
-        <div className="flex gap-3 sm:gap-5 text-xs sm:text-sm mb-5 flex-wrap">
-          <span className="flex items-center gap-1.5">
-            <span className="w-3.5 h-3.5 inline-block bg-white border border-gray-300 rounded shrink-0" /> Available
+        <div className="flex gap-3 sm:gap-5 text-xs sm:text-sm mb-6 flex-wrap justify-center rounded-xl bg-slate-50 py-3 px-4">
+          <span className="flex items-center gap-1.5 font-medium text-slate-600">
+            <span className="w-3.5 h-3.5 inline-block bg-white border border-slate-300 rounded shrink-0" /> Available
           </span>
-          <span className="flex items-center gap-1.5">
+          <span className="flex items-center gap-1.5 font-medium text-slate-600">
             <span className="w-3.5 h-3.5 inline-block bg-amber-100 border border-amber-300 rounded shrink-0" /> Held
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3.5 h-3.5 inline-block bg-gray-100 border border-gray-200 rounded shrink-0" /> Booked
+          <span className="flex items-center gap-1.5 font-medium text-slate-600">
+            <span className="w-3.5 h-3.5 inline-block bg-slate-100 border border-slate-200 rounded shrink-0" /> Booked
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3.5 h-3.5 inline-block bg-indigo-600 rounded shrink-0" /> Your selection
+          <span className="flex items-center gap-1.5 font-medium text-slate-600">
+            <span className="w-3.5 h-3.5 inline-block bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded shrink-0" /> Your
+            selection
           </span>
         </div>
 
@@ -337,16 +352,25 @@ export function ShowPage() {
         </Card>
       )}
 
+      {/* `env(safe-area-inset-bottom)` keeps Confirm/Cancel clear of an iPhone's home-indicator
+          swipe zone — without it, `fixed bottom-0` sits flush against the edge those gestures
+          use, which real phones (not a desktop viewport emulator) actually enforce. */}
       {heldSeats.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-gray-900 text-white px-4 sm:px-6 py-3 sm:py-4 shadow-lg">
-          <div className="max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+        <div
+          className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-lg text-white px-4 sm:px-6 py-3 sm:py-4 shadow-2xl border-t border-white/10"
+          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+        >
+          <div className="max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4">
             <div className="text-sm min-w-0">
-              <div className="truncate">
+              <div className="truncate font-medium">
                 {heldSeats.length} seat{heldSeats.length > 1 ? "s" : ""} held ({seatLabels}) &middot;{" "}
-                <span className="font-semibold">${totalPrice}</span>
+                <span className="font-display font-extrabold text-lg bg-gradient-to-r from-violet-300 to-fuchsia-300 bg-clip-text text-transparent align-middle">
+                  ${totalPrice}
+                </span>
               </div>
-              <div className="text-gray-300">
-                Expires in <span className="font-mono font-semibold">{formatCountdown(remainingSeconds)}</span>
+              <div className="text-slate-400 text-xs mt-0.5 flex items-center gap-1.5">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                Expires in <span className="font-mono font-bold text-amber-300">{formatCountdown(remainingSeconds)}</span>
               </div>
             </div>
             <div className="flex gap-2 shrink-0">
@@ -354,7 +378,7 @@ export function ShowPage() {
                 variant="secondary"
                 onClick={handleReleaseAll}
                 disabled={busy}
-                className="flex-1 sm:flex-none !bg-transparent !text-white !border-gray-500 hover:!bg-gray-800"
+                className="flex-1 sm:flex-none !bg-white/10 !text-white !border-white/20 hover:!bg-white/20 hover:!text-white"
               >
                 Cancel
               </Button>

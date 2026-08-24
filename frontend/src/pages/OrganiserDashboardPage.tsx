@@ -141,10 +141,14 @@ function EventRow({
           </div>
           <p className="text-sm text-gray-500 mt-0.5">{event.description}</p>
         </div>
-        <div className="flex gap-1.5 items-center flex-wrap">
+        {/* Revenue is the number an organiser actually cares about, so it gets the strongest
+            treatment of the three rather than sitting as a peer badge. */}
+        <div className="flex gap-2 items-center flex-wrap">
           <Badge tone="gray">{event.showCount} show(s)</Badge>
-          <Badge tone="gray">{event.ticketsSold} sold</Badge>
-          <Badge tone="green">${event.totalRevenue.toFixed(2)}</Badge>
+          <Badge tone="indigo">{event.ticketsSold} sold</Badge>
+          <span className="rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-sm font-display font-extrabold text-white shadow-sm shadow-emerald-500/30">
+            ${event.totalRevenue.toFixed(2)}
+          </span>
         </div>
       </button>
 
@@ -156,14 +160,17 @@ function EventRow({
               {detail.shows.length === 0 && <p className="text-sm text-gray-500 mb-3">No shows scheduled yet.</p>}
               <div className="flex flex-col gap-2 mb-4">
                 {detail.shows.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-3 py-2 gap-2 flex-wrap">
+                  <div
+                    key={s.id}
+                    className="flex items-center justify-between text-sm bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2.5 gap-2 flex-wrap"
+                  >
                     <div>
-                      <div className="font-medium text-gray-900">{new Date(s.dateTime).toLocaleString()}</div>
-                      <div className="text-gray-500">{s.venue.name}</div>
+                      <div className="font-semibold text-slate-900">{new Date(s.dateTime).toLocaleString()}</div>
+                      <div className="text-slate-500">📍 {s.venue.name}</div>
                     </div>
-                    <div className="text-right text-gray-600">
-                      <div>{s.ticketsSold} sold</div>
-                      <div className="font-semibold">${s.revenue.toFixed(2)}</div>
+                    <div className="text-right">
+                      <div className="text-slate-500 text-xs">{s.ticketsSold} sold</div>
+                      <div className="font-display font-extrabold text-emerald-600">${s.revenue.toFixed(2)}</div>
                     </div>
                   </div>
                 ))}

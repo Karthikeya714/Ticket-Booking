@@ -65,9 +65,11 @@ export function WaitlistOfferPage() {
 
   return (
     <div className="max-w-md mx-auto mt-4 sm:mt-8">
-      <Card className="p-6 sm:p-10 text-center">
-        <div className="text-4xl mb-3">✨</div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">A seat is available for you</h1>
+      <Card className="p-6 sm:p-10 text-center shadow-xl shadow-violet-200/40">
+        <div className="grid place-items-center w-16 h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-3xl shadow-lg shadow-violet-500/30">
+          ✨
+        </div>
+        <h1 className="font-display text-2xl font-extrabold text-slate-900 mb-1">A seat is available for you</h1>
         <p className="text-gray-700 font-medium mt-3">{offer.eventTitle}</p>
         <p className="text-sm text-gray-500 mt-1">
           {new Date(offer.dateTime).toLocaleString()} &middot; {offer.venueName}

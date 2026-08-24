@@ -62,16 +62,16 @@ export function EventsPage() {
       {/* Browse is the app's landing page for every role, so staff arriving here would otherwise
           have to know to look in the nav for the tools they actually came for. */}
       {(user?.role === "organiser" || user?.role === "admin") && (
-        <Card className="p-4 mb-6 flex items-center justify-between gap-3 flex-wrap bg-indigo-50/60 border-indigo-100">
-          <p className="text-sm text-gray-700">
+        <div className="rounded-2xl p-4 mb-6 flex items-center justify-between gap-3 flex-wrap bg-gradient-to-r from-violet-600 to-fuchsia-600 shadow-lg shadow-violet-500/25">
+          <p className="text-sm text-white/95 font-medium">
             {user.role === "organiser"
-              ? "Want to host an event? Create events and schedule shows from your dashboard."
-              : "Manage venues and seat layouts from your dashboard."}
+              ? "✨ Want to host an event? Create events and schedule shows from your dashboard."
+              : "⚙️ Manage venues and seat layouts from your dashboard."}
           </p>
           <Link to={user.role === "organiser" ? "/organiser" : "/admin"} className="shrink-0">
-            <Button>Go to dashboard</Button>
+            <Button className="!bg-white !bg-none !text-violet-700 hover:!shadow-xl">Go to dashboard</Button>
           </Link>
-        </Card>
+        </div>
       )}
 
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -117,9 +117,11 @@ export function EventsPage() {
       {error && <ErrorBanner>{error}</ErrorBanner>}
       {!showSkeleton && !error && events.length === 0 && (
         <Card className="p-10 text-center">
-          <div className="text-3xl mb-2">🔍</div>
-          <p className="font-medium text-gray-900">No events found</p>
-          <p className="text-sm text-gray-500 mt-1">
+          <div className="grid place-items-center w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-violet-100 to-fuchsia-100 text-2xl">
+            🔍
+          </div>
+          <p className="font-display font-bold text-slate-900">No events found</p>
+          <p className="text-sm text-slate-500 mt-1">
             {search || type || date
               ? "Try clearing your filters to see everything on offer."
               : "There are no upcoming events right now — check back soon."}
@@ -129,26 +131,51 @@ export function EventsPage() {
 
       {/* Dimmed rather than replaced while a filter is in flight, so the list stays readable. */}
       <div className={`flex flex-col gap-3 transition-opacity ${loading && hasLoaded.current ? "opacity-50" : ""}`}>
-        {events.map((event) => (
-          <Link key={event.id} to={`/events/${event.id}`}>
-            <Card className="p-5 hover:border-indigo-300 hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <h2 className="font-semibold text-gray-900">{event.title}</h2>
-                  <Badge tone={event.type === "movie" ? "indigo" : "amber"}>{event.type}</Badge>
+        {events.map((event) => {
+          const isMovie = event.type === "movie";
+          return (
+            <Link key={event.id} to={`/events/${event.id}`} className="group">
+              {/* Colour-coded left spine + matching icon tile: movies read violet, concerts amber,
+                  so the two kinds are separable at a glance without reading the badge. */}
+              <Card className="overflow-hidden transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-lg group-hover:shadow-violet-200/50 group-hover:border-violet-200">
+                <div className="flex">
+                  <div
+                    className={`w-1.5 shrink-0 bg-gradient-to-b ${
+                      isMovie ? "from-violet-500 to-indigo-500" : "from-amber-400 to-orange-500"
+                    }`}
+                  />
+                  <div className="flex-1 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <span
+                        className={`grid place-items-center w-11 h-11 shrink-0 rounded-xl text-xl ${
+                          isMovie ? "bg-violet-100" : "bg-amber-100"
+                        }`}
+                      >
+                        {isMovie ? "🎬" : "🎤"}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                          <h2 className="font-display font-bold text-slate-900 group-hover:text-violet-700 transition-colors">
+                            {event.title}
+                          </h2>
+                          <Badge tone={isMovie ? "indigo" : "amber"}>{event.type}</Badge>
+                        </div>
+                        <p className="text-sm text-slate-500">
+                          by {event.organiserName} &middot; {event.upcomingShowCount} upcoming show(s)
+                        </p>
+                      </div>
+                    </div>
+                    {event.nextShowAt && (
+                      <span className="text-xs font-semibold whitespace-nowrap sm:ml-4 rounded-lg bg-slate-100 text-slate-600 px-2.5 py-1.5">
+                        Next: {new Date(event.nextShowAt).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <p className="text-sm text-gray-500">
-                  by {event.organiserName} &middot; {event.upcomingShowCount} upcoming show(s)
-                </p>
-              </div>
-              {event.nextShowAt && (
-                <span className="text-sm text-gray-500 whitespace-nowrap sm:ml-4">
-                  Next: {new Date(event.nextShowAt).toLocaleDateString()}
-                </span>
-              )}
-            </Card>
-          </Link>
-        ))}
+              </Card>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
