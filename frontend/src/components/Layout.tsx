@@ -1,10 +1,14 @@
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "./ui";
 
 export function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // The landing page already has its own "Get started"/"Log in" CTAs front and centre — repeating
+  // them up here too is just noise on the one page where they're guaranteed to be redundant.
+  const onLandingPage = !user && location.pathname === "/";
 
   function handleLogout() {
     logout();
@@ -71,17 +75,19 @@ export function Layout() {
                 </Button>
               </>
             ) : (
-              <>
-                <Link
-                  to="/login"
-                  className="rounded-lg px-3 py-1.5 font-semibold text-slate-600 transition-colors hover:bg-violet-50 hover:text-violet-700"
-                >
-                  Log in
-                </Link>
-                <Link to="/register">
-                  <Button className="!py-1.5">Register</Button>
-                </Link>
-              </>
+              !onLandingPage && (
+                <>
+                  <Link
+                    to="/login"
+                    className="rounded-lg px-3 py-1.5 font-semibold text-slate-600 transition-colors hover:bg-violet-50 hover:text-violet-700"
+                  >
+                    Log in
+                  </Link>
+                  <Link to="/register">
+                    <Button className="!py-1.5">Register</Button>
+                  </Link>
+                </>
+              )
             )}
           </nav>
         </div>
