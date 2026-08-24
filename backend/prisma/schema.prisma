@@ -1,0 +1,230 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  customer
+  organiser
+  admin
+}
+
+enum EventType {
+  movie
+  concert
+}
+
+enum ShowStatus {
+  scheduled
+  cancelled
+}
+
+enum ShowSeatStatus {
+  available
+  held
+  booked
+}
+
+enum HoldStatus {
+  active
+  expired
+  converted
+}
+
+enum BookingStatus {
+  confirmed
+  cancelled
+}
+
+enum WaitlistStatus {
+  waiting
+  offered
+  expired
+  fulfilled
+}
+
+enum WaitlistOfferStatus {
+  pending
+  accepted
+  expired
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String?  @map("password_hash")
+  googleId     String?  @unique @map("google_id")
+  role         Role     @default(customer)
+  name         String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  venuesCreated    Venue[]           @relation("VenueCreatedBy")
+  eventsOrganised  Event[]           @relation("EventOrganiser")
+  holds            Hold[]
+  bookings         Booking[]
+  waitlistEntries  WaitlistEntry[]
+
+  @@map("users")
+}
+
+model Venue {
+  id               String @id @default(uuid())
+  name             String
+  address          String
+  createdByAdminId String @map("created_by_admin_id")
+
+  admin User   @relation("VenueCreatedBy", fields: [createdByAdminId], references: [id])
+  seats Seat[]
+  shows Show[]
+
+  @@map("venues")
+}
+
+model Seat {
+  id         String @id @default(uuid())
+  venueId    String @map("venue_id")
+  rowLabel   String @map("row_label")
+  seatNumber Int    @map("seat_number")
+  category   String
+
+  venue     Venue      @relation(fields: [venueId], references: [id])
+  showSeats ShowSeat[]
+
+  @@unique([venueId, rowLabel, seatNumber])
+  @@map("seats")
+}
+
+model Event {
+  id           String    @id @default(uuid())
+  title        String
+  type         EventType
+  organiserId  String    @map("organiser_id")
+  description  String
+
+  organiser User   @relation("EventOrganiser", fields: [organiserId], references: [id])
+  shows     Show[]
+
+  @@map("events")
+}
+
+model Show {
+  id       String     @id @default(uuid())
+  eventId  String     @map("event_id")
+  venueId  String     @map("venue_id")
+  dateTime DateTime   @map("date_time")
+  status   ShowStatus @default(scheduled)
+
+  event           Event              @relation(fields: [eventId], references: [id])
+  venue           Venue              @relation(fields: [venueId], references: [id])
+  pricing         ShowSeatPricing[]
+  showSeats       ShowSeat[]
+  bookings        Booking[]
+  waitlistEntries WaitlistEntry[]
+
+  @@map("shows")
+}
+
+model ShowSeatPricing {
+  showId   String @map("show_id")
+  category String
+  price    Decimal @db.Decimal(10, 2)
+
+  show Show @relation(fields: [showId], references: [id])
+
+  @@id([showId, category])
+  @@map("show_seat_pricing")
+}
+
+model ShowSeat {
+  id            String         @id @default(uuid())
+  showId        String         @map("show_id")
+  seatId        String         @map("seat_id")
+  status        ShowSeatStatus @default(available)
+  currentHoldId String?        @unique @map("current_hold_id")
+
+  show         Show          @relation(fields: [showId], references: [id])
+  seat         Seat          @relation(fields: [seatId], references: [id])
+  currentHold  Hold?         @relation("CurrentHold", fields: [currentHoldId], references: [id])
+  holds        Hold[]        @relation("HoldsForSeat")
+  bookingSeats BookingSeat[]
+  waitlistOffers WaitlistOffer[]
+
+  @@unique([showId, seatId])
+  @@map("show_seats")
+}
+
+model Hold {
+  id          String     @id @default(uuid())
+  showSeatId  String     @map("show_seat_id")
+  customerId  String     @map("customer_id")
+  expiresAt   DateTime   @map("expires_at")
+  status      HoldStatus @default(active)
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  showSeat      ShowSeat  @relation("HoldsForSeat", fields: [showSeatId], references: [id])
+  heldByCurrent ShowSeat? @relation("CurrentHold")
+  customer      User      @relation(fields: [customerId], references: [id])
+
+  @@map("holds")
+}
+
+model Booking {
+  id                String        @id @default(uuid())
+  customerId        String        @map("customer_id")
+  showId            String        @map("show_id")
+  bookingReference  String        @unique @map("booking_reference")
+  status            BookingStatus @default(confirmed)
+  totalPrice        Decimal       @db.Decimal(10, 2) @map("total_price")
+  createdAt         DateTime      @default(now()) @map("created_at")
+
+  customer     User          @relation(fields: [customerId], references: [id])
+  show         Show          @relation(fields: [showId], references: [id])
+  bookingSeats BookingSeat[]
+
+  @@map("bookings")
+}
+
+model BookingSeat {
+  bookingId  String @map("booking_id")
+  showSeatId String @map("show_seat_id")
+
+  booking  Booking  @relation(fields: [bookingId], references: [id])
+  showSeat ShowSeat @relation(fields: [showSeatId], references: [id])
+
+  @@id([bookingId, showSeatId])
+  @@map("booking_seats")
+}
+
+model WaitlistEntry {
+  id         String          @id @default(uuid())
+  showId     String          @map("show_id")
+  category   String
+  customerId String          @map("customer_id")
+  status     WaitlistStatus  @default(waiting)
+  joinedAt   DateTime        @default(now()) @map("joined_at")
+
+  show     Show            @relation(fields: [showId], references: [id])
+  customer User            @relation(fields: [customerId], references: [id])
+  offers   WaitlistOffer[]
+
+  @@map("waitlist_entries")
+}
+
+model WaitlistOffer {
+  id               String              @id @default(uuid())
+  waitlistEntryId  String              @map("waitlist_entry_id")
+  showSeatId       String              @map("show_seat_id")
+  offerExpiresAt   DateTime            @map("offer_expires_at")
+  status           WaitlistOfferStatus @default(pending)
+  token            String              @unique
+  createdAt        DateTime            @default(now()) @map("created_at")
+
+  waitlistEntry WaitlistEntry @relation(fields: [waitlistEntryId], references: [id])
+  showSeat      ShowSeat      @relation(fields: [showSeatId], references: [id])
+
+  @@map("waitlist_offers")
+}

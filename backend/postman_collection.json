@@ -1,0 +1,249 @@
+{
+  "info": {
+    "name": "Ticket Booking Platform (Phases 1-5)",
+    "description": "Import into Postman. Set the collection variable `baseUrl` if your backend isn't on localhost:4000. Login requests auto-save their token into a variable so later requests can reuse it via {{customerToken}} etc.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000" },
+    { "key": "showId", "value": "1ad9c287-53fc-412e-933d-e3b737041d90", "description": "Seeded show (re-check via Prisma Studio if you re-seed)" },
+    { "key": "seatId", "value": "b1c067a8-ca90-4a4f-a387-766e9a2c136e", "description": "Seeded seat A1 (PREMIUM), from the seeded show above" },
+    { "key": "customerToken", "value": "" },
+    { "key": "customer2Token", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "organiserToken", "value": "" },
+    { "key": "holdId", "value": "" },
+    { "key": "bookingId", "value": "" },
+    { "key": "waitlistOfferId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1 - Auth",
+      "item": [
+        {
+          "name": "Login as customer (seeded)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"customer@example.com\",\n  \"password\": \"password123\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["const body = pm.response.json();", "pm.collectionVariables.set('customerToken', body.token);"] }
+            }
+          ]
+        },
+        {
+          "name": "Login as customer2 (seeded)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"customer2@example.com\",\n  \"password\": \"password123\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["const body = pm.response.json();", "pm.collectionVariables.set('customer2Token', body.token);"] }
+            }
+          ]
+        },
+        {
+          "name": "Login as admin (seeded)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["const body = pm.response.json();", "pm.collectionVariables.set('adminToken', body.token);"] }
+            }
+          ]
+        },
+        {
+          "name": "Login as organiser (seeded)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"organiser@example.com\",\n  \"password\": \"password123\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["const body = pm.response.json();", "pm.collectionVariables.set('organiserToken', body.token);"] }
+            }
+          ]
+        },
+        {
+          "name": "Register a new customer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/register",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"you+test1@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"Test User\"\n}" }
+          }
+        },
+        {
+          "name": "Register with role=admin (should be FORCED to customer - security test)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/register",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"you+test2@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"Attempted Admin\",\n  \"role\": \"admin\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 - Seat Hold (core mechanic)",
+      "item": [
+        {
+          "name": "Hold seat A1 as customer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": "{{baseUrl}}/api/shows/{{showId}}/seats/{{seatId}}/hold"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["if (pm.response.code === 201) { pm.collectionVariables.set('holdId', pm.response.json().holdId); }"] }
+            }
+          ]
+        },
+        {
+          "name": "Try to hold the SAME seat as customer2 (expect 409 SEAT_UNAVAILABLE)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customer2Token}}" }],
+            "url": "{{baseUrl}}/api/shows/{{showId}}/seats/{{seatId}}/hold"
+          }
+        },
+        {
+          "name": "Check hold status + remaining TTL",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": "{{baseUrl}}/api/holds/{{holdId}}"
+          }
+        },
+        {
+          "name": "Confirm the hold -> creates a booking",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": "{{baseUrl}}/api/holds/{{holdId}}/confirm"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["if (pm.response.code === 201) { pm.collectionVariables.set('bookingId', pm.response.json().booking.id); }"] }
+            }
+          ]
+        },
+        {
+          "name": "Release a hold (alternative to confirm)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": "{{baseUrl}}/api/holds/{{holdId}}/release"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 - Bookings",
+      "item": [
+        {
+          "name": "List my bookings",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": "{{baseUrl}}/api/bookings"
+          }
+        },
+        {
+          "name": "Cancel a booking (triggers waitlist offer if anyone is queued)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}/cancel"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4 - Waitlist",
+      "item": [
+        {
+          "name": "Join waitlist for PREMIUM (rejected 400 if seats still available)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customer2Token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/shows/{{showId}}/waitlist",
+            "body": { "mode": "raw", "raw": "{\n  \"category\": \"PREMIUM\"\n}" }
+          }
+        },
+        {
+          "name": "Resolve an offer by its emailed token",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customer2Token}}" }],
+            "url": "{{baseUrl}}/api/waitlist-offers/by-token/PASTE_TOKEN_FROM_SERVER_LOG"
+          }
+        },
+        {
+          "name": "Accept a waitlist offer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customer2Token}}" }],
+            "url": "{{baseUrl}}/api/waitlist-offers/{{waitlistOfferId}}/accept"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5 - Admin",
+      "item": [
+        {
+          "name": "Create a staff (organiser/admin) account",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/admin/users",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"neworganiser@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"New Organiser\",\n  \"role\": \"organiser\"\n}" }
+          }
+        },
+        {
+          "name": "Non-admin tries the same (expect 403)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/admin/users",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"hacker@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"Hacker\",\n  \"role\": \"admin\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6 - Google Sign-In",
+      "item": [
+        {
+          "name": "Google login with a fake token (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/google",
+            "body": { "mode": "raw", "raw": "{\n  \"idToken\": \"not-a-real-token\"\n}" }
+          }
+        }
+      ]
+    }
+  ]
+}
