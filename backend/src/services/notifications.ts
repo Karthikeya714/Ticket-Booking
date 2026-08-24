@@ -48,7 +48,7 @@ export async function sendBookingConfirmationEmail(bookingId: string): Promise<v
       seats,
       totalPrice: Number(booking.totalPrice),
       bookingReference: booking.bookingReference,
-      qrDataUri: `data:image/png;base64,${qrPng.toString("base64")}`,
+      qrImageUrl: `${env.apiBaseUrl}/api/tickets/${booking.bookingReference}/qr.png`,
     });
 
     const result = await sendEmail({
@@ -59,6 +59,8 @@ export async function sendBookingConfirmationEmail(bookingId: string): Promise<v
       // almost always includes both.
       text: email.text,
       html: email.html,
+      // Still a real (non-inline) attachment too, for anyone who'd rather save the ticket than
+      // rely on the hosted image loading.
       attachments: [{ filename: "ticket-qr.png", content: qrPng }],
     });
     console.log(`[email] booking confirmation sent -> ${booking.customer.email} | ${result?.messageId}`);
